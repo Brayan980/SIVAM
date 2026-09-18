@@ -1,0 +1,29 @@
+# Entorno / secretos
+.env
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Base de datos y backups (datos sensibles de pacientes)
+data/clinica.db
+data/backups/
+*.db
+
+# Archivos fuente de datos (pueden contener datos personales)
+data/*.xlsx
+data/*.csv
+
+# Temporales
+_tmp_*
+_preview_*
+
+# Editor / SO
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

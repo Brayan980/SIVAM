@@ -1,0 +1,149 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}{{ 'Editar Historia Clínica' if modo == 'editar' else 'Nueva Historia Clínica' }} · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <a href="/historia_clinica">Historia Clínica</a>
+    <span>{{ 'Editar' if modo == 'editar' else 'Nueva' }}</span>
+  </div>
+  <h1 class="page-title">{{ 'Editar Historia Clínica' if modo == 'editar' else 'Nueva Historia Clínica' }}</h1>
+  {% if valores.get('nombres') %}
+    <p class="page-subtitle">Paciente: {{ valores.get('nombres') }} {{ valores.get('apellidos') }}</p>
+  {% endif %}
+</div>
+
+{% if modo == 'editar' %}
+  <a class="volver-sivam" href="/?id={{ paciente_id }}">&larr; Volver a la ficha</a>
+{% else %}
+  <a class="volver-sivam" href="/historia_clinica">&larr; Volver</a>
+{% endif %}
+
+{% if errores %}
+  <div class="errores-sivam">
+    {% for e in errores %}<p>{{ e }}</p>{% endfor %}
+  </div>
+{% endif %}
+
+<form method="post" class="hc-form" action="{{ '/editar/' ~ paciente_id if modo == 'editar' else '/nuevo' }}">
+
+  {# ===== Datos del Paciente ===== #}
+  <section class="form-seccion">
+    <h3 class="form-seccion-titulo"><i class="fas fa-user"></i> Datos del Paciente</h3>
+    <div class="form-grid">
+      <div class="campo-sivam">
+        <label for="nombres">Nombres *</label>
+        <input type="text" id="nombres" name="nombres" value="{{ valores.get('nombres') or '' }}" required>
+      </div>
+      <div class="campo-sivam">
+        <label for="apellidos">Apellidos *</label>
+        <input type="text" id="apellidos" name="apellidos" value="{{ valores.get('apellidos') or '' }}" required>
+      </div>
+      <div class="campo-sivam">
+        <label for="edad">Edad</label>
+        <input type="number" min="0" max="120" id="edad" name="edad" value="{{ valores.get('edad') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="fecha_de_nacimiento">Fecha de nacimiento</label>
+        <input type="date" id="fecha_de_nacimiento" name="fecha_de_nacimiento" value="{{ valores.get('fecha_de_nacimiento') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="sexo">Sexo</label>
+        <select id="sexo" name="sexo">
+          <option value="">Selecciona...</option>
+          <option value="Mujer" {{ 'selected' if valores.get('sexo') == 'Mujer' }}>Mujer</option>
+          <option value="Hombre" {{ 'selected' if valores.get('sexo') == 'Hombre' }}>Hombre</option>
+        </select>
+      </div>
+      <div class="campo-sivam">
+        <label for="barrio">Barrio</label>
+        <input type="text" id="barrio" name="barrio" value="{{ valores.get('barrio') or '' }}">
+      </div>
+    </div>
+  </section>
+
+  {# ===== Antecedentes ===== #}
+  <section class="form-seccion">
+    <h3 class="form-seccion-titulo"><i class="fas fa-notes-medical"></i> Antecedentes</h3>
+    <div class="form-grid">
+      <div class="campo-sivam">
+        <label for="antecedentes_familiares">Antecedentes familiares</label>
+        <textarea id="antecedentes_familiares" name="antecedentes_familiares" rows="2">{{ valores.get('antecedentes_familiares') or '' }}</textarea>
+      </div>
+      <div class="campo-sivam">
+        <label for="con_quien_vives">Con quién vive</label>
+        <input type="text" id="con_quien_vives" name="con_quien_vives" value="{{ valores.get('con_quien_vives') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="caidas_previas">Caídas previas</label>
+        <input type="text" id="caidas_previas" name="caidas_previas" value="{{ valores.get('caidas_previas') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="lesiones_musculoesqueleticas_o_cirugia">Lesiones musculoesqueléticas / cirugías</label>
+        <textarea id="lesiones_musculoesqueleticas_o_cirugia" name="lesiones_musculoesqueleticas_o_cirugia" rows="2">{{ valores.get('lesiones_musculoesqueleticas_o_cirugia') or '' }}</textarea>
+      </div>
+    </div>
+  </section>
+
+  {# ===== Datos Médicos ===== #}
+  <section class="form-seccion">
+    <h3 class="form-seccion-titulo"><i class="fas fa-pills"></i> Datos Médicos</h3>
+    <div class="form-grid">
+      <div class="campo-sivam">
+        <label for="medicacion_y_suplementacion">Medicación y suplementación</label>
+        <textarea id="medicacion_y_suplementacion" name="medicacion_y_suplementacion" rows="2">{{ valores.get('medicacion_y_suplementacion') or '' }}</textarea>
+      </div>
+      <div class="campo-sivam">
+        <label for="medicacion_sumplementacion">Medicación / suplementación (adicional)</label>
+        <textarea id="medicacion_sumplementacion" name="medicacion_sumplementacion" rows="2">{{ valores.get('medicacion_sumplementacion') or '' }}</textarea>
+      </div>
+      <div class="campo-sivam campo-ancho">
+        <label for="patologia_actual">Patología actual</label>
+        <textarea id="patologia_actual" name="patologia_actual" rows="2">{{ valores.get('patologia_actual') or '' }}</textarea>
+      </div>
+      <div class="campo-sivam">
+        <label for="alergias">Alergias</label>
+        <input type="text" id="alergias" name="alergias" value="{{ valores.get('alergias') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="actividad_sexual">Actividad sexual</label>
+        <input type="text" id="actividad_sexual" name="actividad_sexual" value="{{ valores.get('actividad_sexual') or '' }}">
+      </div>
+    </div>
+  </section>
+
+  {# ===== Hábitos y Riesgo ===== #}
+  <section class="form-seccion">
+    <h3 class="form-seccion-titulo"><i class="fas fa-heart"></i> Hábitos y Riesgo</h3>
+    <div class="form-grid">
+      <div class="campo-sivam campo-ancho">
+        <label for="habitos_y_estilos_de_vida_alcohol_tabaco_azucares_alimentos_procesados">Hábitos y estilo de vida</label>
+        <textarea id="habitos_y_estilos_de_vida_alcohol_tabaco_azucares_alimentos_procesados" name="habitos_y_estilos_de_vida_alcohol_tabaco_azucares_alimentos_procesados" rows="2">{{ valores.get('habitos_y_estilos_de_vida_alcohol_tabaco_azucares_alimentos_procesados') or '' }}</textarea>
+      </div>
+      <div class="campo-sivam">
+        <label for="ejercicio_y_actividad_fisica_leve_moderado_intenso">Ejercicio y actividad física</label>
+        <input type="text" id="ejercicio_y_actividad_fisica_leve_moderado_intenso" name="ejercicio_y_actividad_fisica_leve_moderado_intenso" value="{{ valores.get('ejercicio_y_actividad_fisica_leve_moderado_intenso') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="riesgo_cardiovascular_con_riesgo_o_sin_riesgo">Riesgo cardiovascular</label>
+        <select id="riesgo_cardiovascular_con_riesgo_o_sin_riesgo" name="riesgo_cardiovascular_con_riesgo_o_sin_riesgo">
+          <option value="">Selecciona...</option>
+          <option value="Con riesgo" {{ 'selected' if valores.get('riesgo_cardiovascular_con_riesgo_o_sin_riesgo') == 'Con riesgo' }}>Con riesgo</option>
+          <option value="Sin riesgo" {{ 'selected' if valores.get('riesgo_cardiovascular_con_riesgo_o_sin_riesgo') == 'Sin riesgo' }}>Sin riesgo</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <div class="form-acciones">
+    {% if modo == 'editar' %}
+      <a class="boton-secundario" href="/?id={{ paciente_id }}">Cancelar</a>
+    {% else %}
+      <a class="boton-secundario" href="/historia_clinica">Cancelar</a>
+    {% endif %}
+    <button type="submit" class="boton-guardar-sivam">{{ 'Actualizar Historia Clínica' if modo == 'editar' else 'Guardar Historia Clínica' }}</button>
+  </div>
+</form>
+{% endblock %}

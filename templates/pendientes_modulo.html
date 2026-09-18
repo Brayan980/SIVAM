@@ -1,0 +1,50 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}Pendientes · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <a href="{{ volver_url }}">{{ titulo }}</a>
+    <span>Pendientes</span>
+  </div>
+  <div class="page-header-actions">
+    <h1 class="page-title">Pendientes</h1>
+    <a class="boton-secundario" href="{{ volver_url }}">Volver</a>
+  </div>
+  <p class="page-subtitle">{{ subtitulo }}</p>
+</div>
+
+<section class="tabla-panel-sivam">
+  <h2 class="tabla-panel-titulo"><i class="fas fa-clock"></i> Pacientes Pendientes ({{ pendientes|length }})</h2>
+  {% if pendientes %}
+  <div class="tabla-container">
+    <table class="tabla-pacientes">
+      <thead>
+        <tr>
+          <th>Paciente</th>
+          <th>Sexo</th>
+          <th class="col-acciones">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pendientes %}
+        <tr>
+          <td><strong>{{ p.nombres }} {{ p.apellidos }}</strong></td>
+          <td>{{ p.sexo if p.sexo else '-' }}</td>
+          <td class="col-acciones">
+            <a class="btn-sivam btn-sivam-primary btn-registrar" href="/registrar_modulo/{{ modulo }}/{{ p.id }}">
+              <i class="fas fa-plus"></i> Registrar
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <div class="vacio-sivam"><p>No hay pacientes pendientes. ¡Todos tienen medición!</p></div>
+  {% endif %}
+</section>
+{% endblock %}

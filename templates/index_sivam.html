@@ -1,0 +1,339 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}Pacientes · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <span>Pacientes</span>
+  </div>
+  <div class="page-header-actions">
+    <h1 class="page-title">Pacientes</h1>
+    <a class="boton-nuevo-sivam" href="/nuevo">+ Agregar paciente</a>
+  </div>
+  <p class="page-subtitle">Búsqueda y gestión de historias clínicas</p>
+</div>
+
+<form class="buscador-sivam" method="get" action="/">
+  <label for="q" class="buscador-etiqueta">Nombre o apellido del paciente</label>
+  <div class="buscador-fila">
+    <input
+      type="text"
+      id="q"
+      name="q"
+      value="{{ query }}"
+      placeholder="Ej. Alba Marina Chávez"
+      autocomplete="off"
+      autofocus>
+    <button type="submit">Buscar</button>
+  </div>
+</form>
+
+{# --- Caso 1: coincidencia unica -> mostramos la ficha completa --- #}
+{% if paciente %}
+  <a class="volver-sivam" href="/">&larr; Volver a Pacientes</a>
+  <section class="ficha-sivam">
+    <div class="ficha-header">
+      <h1>{{ paciente.nombres }} {{ paciente.apellidos }}</h1>
+      {% if paciente.riesgo_cardiovascular_con_riesgo_o_sin_riesgo %}
+        <span class="etiqueta-riesgo {{ 'riesgo-alto' if 'con' in paciente.riesgo_cardiovascular_con_riesgo_o_sin_riesgo|lower else 'riesgo-bajo' }}">
+          {{ paciente.riesgo_cardiovascular_con_riesgo_o_sin_riesgo }}
+        </span>
+      {% endif %}
+    </div>
+
+    <dl class="ficha-datos">
+      {% for etiqueta, valor in detalle %}
+        <div class="dato">
+          <dt>{{ etiqueta }}</dt>
+          <dd>{{ valor }}</dd>
+        </div>
+      {% endfor %}
+    </dl>
+
+    <div class="ficha-pie">
+      <div class="ficha-acciones">
+        <a class="boton-nuevo-sivam" href="/paciente/{{ paciente.id }}/dashboard"><i class="fas fa-chart-pie"></i> Ver Dashboard</a>
+        <a class="boton-secundario" href="/editar/{{ paciente.id }}">Editar</a>
+        <form method="post" action="/eliminar/{{ paciente.id }}"
+              onsubmit="return confirm('¿Eliminar a {{ paciente.nombres }} {{ paciente.apellidos }}? Esta acción no se puede deshacer.');">
+          <button type="submit" class="boton-peligro">Eliminar</button>
+        </form>
+      </div>
+    </div>
+
+    {#
+      Lista de módulos: (clave_datos, clave_registrar_modulo, icono, etiqueta)
+      - clave_datos: la clave con la que se guarda en el dict del paciente
+      - clave_registrar_modulo: la que espera la ruta /registrar_modulo/<modulo>/<id>
+    #}
+    {% set modulos_disponibles = [
+      ('antropometria', 'antropometria', 'fa-ruler-vertical', 'Antropometría'),
+      ('vo2_max', 'vo2_max', 'fa-heartbeat', 'VO2 Max'),
+      ('test_moca', 'test_moca', 'fa-brain', 'Test MoCA'),
+      ('test_tinetti', 'test_tinetti', 'fa-walking', 'Test Tinetti'),
+      ('test_chair_stand', 'test_chair_stand', 'fa-chair', 'Test Chair Stand'),
+      ('caracterizacion', 'caracterizacion', 'fa-home', 'Caracterización')
+    ] %}
+
+    <div class="ficha-modulos">
+      <h3 class="subtitulo-form">Módulos disponibles</h3>
+      <div class="modulos-grid">
+        {% for clave, modulo, icono, etiqueta in modulos_disponibles %}
+          {% set tiene_registro = paciente.get(clave) %}
+          <a href="/registrar_modulo/{{ modulo }}/{{ paciente.id }}"
+             class="modulo-card {{ 'modulo-card-registrado' if tiene_registro else '' }}"
+             title="{{ 'Editar ' ~ etiqueta if tiene_registro else 'Registrar ' ~ etiqueta }}">
+            <i class="fas {{ icono }}"></i>
+            <span>{{ etiqueta }}</span>
+            <small class="modulo-card-estado">
+              {% if tiene_registro %}<i class="fas fa-pen"></i> Editar{% else %}<i class="fas fa-plus"></i> Registrar{% endif %}
+            </small>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# --- Módulos existentes del paciente: solo se muestran los realizados --- #}
+    {% set total_realizados = ['antropometria','vo2_max','test_moca','test_tinetti','test_chair_stand','caracterizacion']
+        | select('in', paciente) | list | length %}
+
+    <div class="ficha-modulos-integrados">
+      <div class="datos-header">
+        <h3 class="subtitulo-form">Datos registrados</h3>
+        {% if total_realizados > 0 %}
+          <span class="datos-contador">{{ total_realizados }} de 6 evaluaciones</span>
+        {% endif %}
+      </div>
+
+      {% if total_realizados > 0 %}
+      <div class="datos-grid">
+        {% if paciente.get('antropometria') %}
+          <div class="dato-card">
+            <div class="dato-card-head">
+              <span class="dato-card-icono"><i class="fas fa-ruler-vertical"></i></span>
+              <h4>Antropometría</h4>
+              <a href="/registrar_modulo/antropometria/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+            </div>
+            <div class="dato-card-chips">
+              <span class="chip">{{ paciente.antropometria.peso }} kg</span>
+              <span class="chip">{{ paciente.antropometria.talla }} cm</span>
+              <span class="chip chip-destacado">IMC {{ paciente.antropometria.imc }}</span>
+            </div>
+          </div>
+        {% endif %}
+
+        {% if paciente.get('vo2_max') %}
+          <div class="dato-card">
+            <div class="dato-card-head">
+              <span class="dato-card-icono"><i class="fas fa-heartbeat"></i></span>
+              <h4>VO2 Max</h4>
+              <a href="/registrar_modulo/vo2_max/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+            </div>
+            <div class="dato-card-chips">
+              <span class="chip">{{ paciente.vo2_max.vo2_max }} ml/kg/min</span>
+              <span class="chip chip-destacado">{{ paciente.vo2_max.resultado }}</span>
+            </div>
+          </div>
+        {% endif %}
+
+        {% if paciente.get('test_moca') %}
+          <div class="dato-card">
+            <div class="dato-card-head">
+              <span class="dato-card-icono"><i class="fas fa-brain"></i></span>
+              <h4>Test MoCA</h4>
+              <a href="/registrar_modulo/test_moca/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+            </div>
+            <div class="dato-card-chips">
+              <span class="chip chip-destacado">{{ paciente.test_moca.resultado }}</span>
+            </div>
+          </div>
+        {% endif %}
+
+        {% if paciente.get('test_tinetti') %}
+          <div class="dato-card">
+            <div class="dato-card-head">
+              <span class="dato-card-icono"><i class="fas fa-walking"></i></span>
+              <h4>Test Tinetti</h4>
+              <a href="/registrar_modulo/test_tinetti/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+            </div>
+            <div class="dato-card-chips">
+              <span class="chip chip-destacado">{{ paciente.test_tinetti.resultado }}</span>
+            </div>
+          </div>
+        {% endif %}
+
+        {% if paciente.get('test_chair_stand') %}
+          <div class="dato-card">
+            <div class="dato-card-head">
+              <span class="dato-card-icono"><i class="fas fa-chair"></i></span>
+              <h4>Test Chair Stand</h4>
+              <a href="/registrar_modulo/test_chair_stand/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+            </div>
+            <div class="dato-card-chips">
+              <span class="chip chip-destacado">{{ paciente.test_chair_stand.resultado }}</span>
+            </div>
+          </div>
+        {% endif %}
+
+        {% if paciente.get('caracterizacion') %}
+          <div class="dato-card">
+            <div class="dato-card-head">
+              <span class="dato-card-icono"><i class="fas fa-house-user"></i></span>
+              <h4>Caracterización</h4>
+              <a href="/registrar_modulo/caracterizacion/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+            </div>
+            <div class="dato-card-chips">
+              {% if paciente.caracterizacion.escolaridad %}<span class="chip">{{ paciente.caracterizacion.escolaridad }}</span>{% endif %}
+              {% if paciente.caracterizacion.vivienda %}<span class="chip">{{ paciente.caracterizacion.vivienda }}</span>{% endif %}
+              {% if paciente.caracterizacion.con_quien_convive %}<span class="chip">{{ paciente.caracterizacion.con_quien_convive }}</span>{% endif %}
+              {% if paciente.caracterizacion.estado_socioeconomico %}<span class="chip">{{ paciente.caracterizacion.estado_socioeconomico }}</span>{% endif %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+      {% else %}
+        <div class="info-mensaje">
+          <i class="fas fa-info-circle"></i>
+          Este paciente no tiene datos de módulos registrados. Usa los botones de "Módulos disponibles" para agregar información.
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+{# --- Caso 2: listado de pacientes (con o sin filtro) en tabla --- #}
+{% elif resultados %}
+  <section class="tabla-panel-sivam">
+    <h2 class="tabla-panel-titulo"><i class="fas fa-users"></i> Pacientes Registrados ({{ total_registros }})</h2>
+    <div class="tabla-container">
+      <table class="tabla-pacientes">
+        <thead>
+          <tr>
+            <th>Nombres</th>
+            <th>Apellidos</th>
+            <th>Edad</th>
+            <th>Sexo</th>
+            <th>Barrio</th>
+            <th class="col-acciones">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in resultados %}
+          <tr>
+            <td><strong>{{ r.nombres }}</strong></td>
+            <td>{{ r.apellidos }}</td>
+            <td>{{ (r.edad|int ~ ' años') if r.edad else '-' }}</td>
+            <td>{{ r.sexo if r.sexo else '-' }}</td>
+            <td>{{ r.barrio if r.barrio else '-' }}</td>
+            <td class="col-acciones">
+              <button type="button" class="accion-btn accion-ver"
+                      title="Ver ficha"
+                      onclick="verPaciente({{ r.id }})"><i class="fas fa-eye"></i></button>
+              <a class="accion-btn accion-editar" title="Editar"
+                 href="/editar/{{ r.id }}"><i class="fas fa-pen"></i></a>
+              <button type="button" class="accion-btn accion-eliminar"
+                      title="Eliminar"
+                      onclick="confirmarEliminar({{ r.id }}, '{{ (r.nombres ~ ' ' ~ r.apellidos)|e }}')"><i class="fas fa-trash"></i></button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if total_paginas > 1 %}
+    <div class="paginacion-sivam">
+      {% if pagina > 1 %}
+        <a href="{{ url_for('index', pagina=pagina - 1, q=query or none) }}" class="pag-btn">&laquo; Anterior</a>
+      {% else %}
+        <span class="pag-btn pag-disabled">&laquo; Anterior</span>
+      {% endif %}
+      <span class="pag-info">Página {{ pagina }} de {{ total_paginas }}</span>
+      {% if pagina < total_paginas %}
+        <a href="{{ url_for('index', pagina=pagina + 1, q=query or none) }}" class="pag-btn">Siguiente &raquo;</a>
+      {% else %}
+        <span class="pag-btn pag-disabled">Siguiente &raquo;</span>
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
+
+{# --- Caso 3: se filtró pero no hubo coincidencias --- #}
+{% elif query %}
+  <section class="vacio-sivam">
+    <p>No se encontró ningún paciente que coincida con "<strong>{{ query }}</strong>".</p>
+    <p class="vacio-ayuda">Revisa la ortografía o intenta solo con el apellido.</p>
+  </section>
+{% endif %}
+
+<!-- Modal de ficha del paciente (ventana emergente) -->
+<div class="modal-overlay" id="modal-ficha" onclick="cerrarModalSiFondo(event)">
+  <div class="modal-caja">
+    <div class="modal-header">
+      <h3 id="modal-titulo">Ficha del paciente</h3>
+      <button type="button" class="modal-cerrar" onclick="cerrarModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body">
+      <div class="modal-cargando">Cargando...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de confirmación de eliminación -->
+<div class="modal-overlay" id="modal-eliminar" onclick="cerrarEliminarSiFondo(event)">
+  <div class="modal-caja modal-caja-chica">
+    <div class="modal-header">
+      <h3>Confirmar eliminación</h3>
+      <button type="button" class="modal-cerrar" onclick="cerrarEliminar()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="eliminar-texto">¿Eliminar este paciente?</p>
+      <p class="vacio-ayuda">Esta acción no se puede deshacer.</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="boton-secundario" onclick="cerrarEliminar()">Cancelar</button>
+      <form method="post" id="form-eliminar">
+        <button type="submit" class="boton-peligro">Eliminar</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function verPaciente(id) {
+    const modal = document.getElementById('modal-ficha');
+    const body = document.getElementById('modal-body');
+    body.innerHTML = '<div class="modal-cargando">Cargando...</div>';
+    modal.classList.add('abierto');
+
+    fetch('/paciente_ficha/' + id)
+      .then(function (resp) { return resp.text(); })
+      .then(function (html) { body.innerHTML = html; })
+      .catch(function () { body.innerHTML = '<p>No se pudo cargar la ficha.</p>'; });
+  }
+
+  function cerrarModal() {
+    document.getElementById('modal-ficha').classList.remove('abierto');
+  }
+  function cerrarModalSiFondo(e) {
+    if (e.target.id === 'modal-ficha') cerrarModal();
+  }
+
+  function confirmarEliminar(id, nombre) {
+    document.getElementById('eliminar-texto').textContent = '¿Eliminar a ' + nombre + '?';
+    document.getElementById('form-eliminar').action = '/eliminar/' + id;
+    document.getElementById('modal-eliminar').classList.add('abierto');
+  }
+  function cerrarEliminar() {
+    document.getElementById('modal-eliminar').classList.remove('abierto');
+  }
+  function cerrarEliminarSiFondo(e) {
+    if (e.target.id === 'modal-eliminar') cerrarEliminar();
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { cerrarModal(); cerrarEliminar(); }
+  });
+</script>
+{% endblock %}

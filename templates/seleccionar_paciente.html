@@ -1,0 +1,57 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}Seleccionar Paciente · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <a href="/">Pacientes</a>
+    <span>Seleccionar Paciente</span>
+  </div>
+  <h1 class="page-title">Seleccionar Paciente</h1>
+  <p class="page-subtitle">Busca y selecciona un paciente existente para agregar datos</p>
+</div>
+
+<form class="buscador-sivam" method="get" action="/seleccionar_paciente">
+  <input type="hidden" name="modulo" value="{{ siguiente_modulo }}">
+  <label for="q" class="buscador-etiqueta">Nombre o apellido del paciente</label>
+  <div class="buscador-fila">
+    <input
+      type="text"
+      id="q"
+      name="q"
+      value="{{ query }}"
+      placeholder="Ej. Alba Marina Chávez"
+      autocomplete="off"
+      autofocus>
+    <button type="submit">Buscar</button>
+  </div>
+</form>
+
+{% if resultados %}
+  <section class="lista-resultados-sivam">
+    <p class="conteo">{{ resultados|length }} pacientes encontrados</p>
+    {% for r in resultados %}
+      <form method="post" class="fila-seleccion-form">
+        <input type="hidden" name="paciente_id" value="{{ r[0] }}">
+        <input type="hidden" name="modulo" value="{{ siguiente_modulo }}">
+        <button type="submit" class="fila-seleccion-btn">
+          <span class="fila-nombre">{{ r[1] }} {{ r[2] }}</span>
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </form>
+    {% endfor %}
+  </section>
+{% elif query %}
+  <section class="vacio-sivam">
+    <p>No se encontró ningún paciente que coincida con "<strong>{{ query }}</strong>".</p>
+    <p class="vacio-ayuda">Revisa la ortografía o intenta solo con el apellido.</p>
+  </section>
+{% else %}
+  <section class="vacio-sivam">
+    <p>Escribe un nombre o apellido para buscar un paciente existente.</p>
+    <p class="vacio-ayuda">Todos los módulos requieren seleccionar un paciente existente primero.</p>
+  </section>
+{% endif %}
+{% endblock %}

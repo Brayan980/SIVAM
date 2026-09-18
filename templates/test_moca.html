@@ -1,0 +1,156 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}Test MoCA · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <a href="/">Pacientes</a>
+    <a href="/?id={{ paciente.id }}">Ficha</a>
+    <span>Test MoCA</span>
+  </div>
+  <h1 class="page-title">Nueva Evaluación MoCA</h1>
+  <p class="page-subtitle">Paciente: {{ paciente.nombres }} {{ paciente.apellidos }} | Edad: {{ paciente.edad or '-' }} años</p>
+</div>
+
+<a class="volver-sivam" href="{{ volver_url or ('/?id=' ~ paciente.id) }}">&larr; Volver</a>
+
+{% if existe %}
+  <div class="info-mensaje">
+    <i class="fas fa-info-circle"></i>
+    Este paciente ya tiene evaluación MoCA. Estás editando el registro existente.
+  </div>
+{% endif %}
+
+<div class="info-mensaje">
+  <strong>Montreal Cognitive Assessment (MoCA):</strong>
+  Evaluación cognitiva de 30 puntos. Complete cada dominio y el sistema calculará la clasificación automáticamente.
+</div>
+
+<!-- Panel de resultado en tiempo real -->
+<div class="tinetti-resultado" id="panel-resultado">
+  <div class="tinetti-resultado-titulo">Resultado en tiempo real</div>
+  <div class="tinetti-resultado-grid">
+    <div class="tinetti-res-item">
+      <span class="tinetti-res-label">Puntaje Total</span>
+      <span class="tinetti-res-valor"><span id="rt-total">0</span> / 30</span>
+    </div>
+    <div class="tinetti-res-item">
+      <span class="tinetti-res-label">Clasificación</span>
+      <span class="tinetti-res-clasif" id="rt-clasif">-</span>
+    </div>
+  </div>
+</div>
+
+<form method="post" class="hc-form" id="form-moca">
+
+  {# ===== Dominios cognitivos ===== #}
+  <section class="form-seccion">
+    <h3 class="form-seccion-titulo"><i class="fas fa-brain"></i> Dominios Cognitivos</h3>
+
+    {% set dominios = [
+      ('visuoespacial', 'Visuoespacial / Ejecutivo', 'Trazo, cubo, reloj', 5),
+      ('denominacion', 'Denominación', 'León, rinoceronte, camello', 3),
+      ('memoria', 'Memoria / Recuerdo Diferido', 'Recuerdo de 5 palabras', 5),
+      ('atencion', 'Atención', 'Dígitos, resta seriada', 6),
+      ('lenguaje', 'Lenguaje', 'Fluidez, repetición', 3),
+      ('abstraccion', 'Abstracción', 'Semejanzas', 2),
+      ('orientacion', 'Orientación', 'Tiempo y lugar', 6)
+    ] %}
+
+    <div class="form-grid form-grid-3">
+      {% for campo, titulo, ayuda, maximo in dominios %}
+      <div class="campo-sivam moca-dominio">
+        <label for="{{ campo }}">{{ titulo }} <span class="moca-rango">(0-{{ maximo }})</span></label>
+        <span class="moca-ayuda">{{ ayuda }}</span>
+        <input type="number" id="{{ campo }}" name="{{ campo }}"
+               class="moca-input" min="0" max="{{ maximo }}" step="1"
+               data-max="{{ maximo }}"
+               value="{{ valores.get(campo) if valores.get(campo) is not none else '' }}"
+               placeholder="0-{{ maximo }}">
+      </div>
+      {% endfor %}
+    </div>
+
+    <label class="moca-checkbox">
+      <input type="checkbox" id="nada_mental" name="nada_mental"
+             {{ 'checked' if valores.get('nada_mental') }}>
+      NADA MENTAL (Paciente no pudo completar la evaluación)
+    </label>
+  </section>
+
+  {# ===== Datos adicionales ===== #}
+  <section class="form-seccion">
+    <h3 class="form-seccion-titulo"><i class="fas fa-clipboard"></i> Datos Adicionales</h3>
+    <div class="form-grid form-grid-3">
+      <div class="campo-sivam">
+        <label for="fecha_examen">Fecha del examen</label>
+        <input type="date" id="fecha_examen" name="fecha_examen" value="{{ valores.get('fecha_examen') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="indice_memoria">Índice de Memoria <span class="moca-rango">(opcional)</span></label>
+        <input type="number" id="indice_memoria" name="indice_memoria" min="0" step="1"
+               value="{{ valores.get('indice_memoria') if valores.get('indice_memoria') is not none else '' }}"
+               placeholder="Ej: 5">
+      </div>
+      <div class="campo-sivam">
+        <label for="evaluador">Evaluador</label>
+        <input type="text" id="evaluador" name="evaluador" placeholder="Nombre del evaluador"
+               value="{{ valores.get('evaluador') or '' }}">
+      </div>
+      <div class="campo-sivam campo-ancho">
+        <label for="observaciones">Observaciones</label>
+        <textarea id="observaciones" name="observaciones" rows="2" placeholder="Observaciones adicionales...">{{ valores.get('observaciones') or '' }}</textarea>
+      </div>
+    </div>
+  </section>
+
+  <div class="form-acciones">
+    <a class="boton-secundario" href="/test_moca">Cancelar</a>
+    <button type="submit" class="boton-guardar-sivam">
+      {{ 'Actualizar' if existe else 'Guardar' }} evaluación
+    </button>
+  </div>
+</form>
+
+<script>
+  (function () {
+    const form = document.getElementById('form-moca');
+    const inputs = form.querySelectorAll('.moca-input');
+    const nada = document.getElementById('nada_mental');
+
+    function actualizar() {
+      let total = 0;
+      if (!nada.checked) {
+        inputs.forEach(function (inp) {
+          let v = parseInt(inp.value, 10);
+          const max = parseInt(inp.dataset.max, 10);
+          if (isNaN(v) || v < 0) v = 0;
+          if (v > max) { v = max; inp.value = max; }
+          total += v;
+        });
+      }
+
+      document.getElementById('rt-total').textContent = total;
+
+      let clasif, clase;
+      if (nada.checked) { clasif = 'NADA MENTAL'; clase = 'clasif-alto'; }
+      else if (total >= 26) { clasif = 'NORMAL'; clase = 'clasif-bajo'; }
+      else if (total >= 18) { clasif = 'PDCL (Leve)'; clase = 'clasif-moderado'; }
+      else { clasif = 'PDCM / DC'; clase = 'clasif-alto'; }
+
+      const el = document.getElementById('rt-clasif');
+      el.textContent = clasif;
+      el.className = 'tinetti-res-clasif ' + clase;
+    }
+
+    inputs.forEach(function (inp) { inp.addEventListener('input', actualizar); });
+    nada.addEventListener('change', function () {
+      inputs.forEach(function (inp) { inp.disabled = nada.checked; });
+      actualizar();
+    });
+    actualizar();
+  })();
+</script>
+{% endblock %}

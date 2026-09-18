@@ -1,0 +1,194 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}Usuarios · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <span>Usuarios</span>
+  </div>
+  <div class="page-header-actions">
+    <h1 class="page-title">Gestión de Usuarios</h1>
+    <button type="button" class="boton-nuevo-sivam" onclick="abrirCrear()">+ Nuevo usuario</button>
+  </div>
+  <p class="page-subtitle">Administra las cuentas y permisos del sistema</p>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for categoria, mensaje in messages %}
+      <div class="alerta-sivam alerta-{{ 'ok' if categoria == 'ok' else 'error' }}">
+        <i class="fas {{ 'fa-check-circle' if categoria == 'ok' else 'fa-exclamation-circle' }}"></i>
+        {{ mensaje }}
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<section class="tabla-panel-sivam">
+  <h2 class="tabla-panel-titulo"><i class="fas fa-users-cog"></i> Usuarios ({{ usuarios|length }})</h2>
+  <div class="tabla-container">
+    <table class="tabla-pacientes">
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Nombre completo</th>
+          <th>Rol</th>
+          <th>Creado</th>
+          <th class="col-acciones">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in usuarios %}
+        <tr>
+          <td><strong>{{ u.usuario }}</strong></td>
+          <td>{{ u.nombre_completo if u.nombre_completo else '-' }}</td>
+          <td>
+            <span class="badge-rol badge-rol-{{ u.rol }}">
+              <i class="fas {{ 'fa-user-shield' if u.rol == 'admin' else 'fa-user-md' }}"></i>
+              {{ u.rol|capitalize }}
+            </span>
+          </td>
+          <td>{{ (u.fecha_creacion[:10]) if u.fecha_creacion else '-' }}</td>
+          <td class="col-acciones">
+            <button type="button" class="accion-btn accion-editar" title="Editar"
+                    onclick='abrirEditar({{ u.id }}, {{ u.usuario|tojson }}, {{ (u.nombre_completo or "")|tojson }}, {{ u.rol|tojson }})'>
+              <i class="fas fa-pen"></i>
+            </button>
+            <button type="button" class="accion-btn accion-eliminar" title="Eliminar"
+                    onclick='confirmarEliminar({{ u.id }}, {{ u.usuario|tojson }})'>
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- Modal Crear usuario -->
+<div class="modal-overlay" id="modal-crear" onclick="if(event.target.id==='modal-crear')cerrar('modal-crear')">
+  <div class="modal-caja modal-caja-chica">
+    <div class="modal-header">
+      <h3>Nuevo usuario</h3>
+      <button type="button" class="modal-cerrar" onclick="cerrar('modal-crear')">&times;</button>
+    </div>
+    <form method="post" action="/usuarios/crear">
+      <div class="modal-body">
+        <div class="campo-sivam">
+          <label for="crear-usuario">Usuario *</label>
+          <input type="text" id="crear-usuario" name="usuario" required autocomplete="off">
+        </div>
+        <div class="campo-sivam">
+          <label for="crear-nombre">Nombre completo</label>
+          <input type="text" id="crear-nombre" name="nombre_completo" autocomplete="off">
+        </div>
+        <div class="campo-sivam">
+          <label for="crear-contrasena">Contraseña *</label>
+          <input type="password" id="crear-contrasena" name="contrasena" required autocomplete="new-password">
+        </div>
+        <div class="campo-sivam">
+          <label for="crear-rol">Rol *</label>
+          <select id="crear-rol" name="rol" required>
+            {% for r in roles %}
+              <option value="{{ r }}">{{ r|capitalize }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="boton-secundario" onclick="cerrar('modal-crear')">Cancelar</button>
+        <button type="submit" class="boton-guardar-sivam">Crear usuario</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Editar usuario -->
+<div class="modal-overlay" id="modal-editar" onclick="if(event.target.id==='modal-editar')cerrar('modal-editar')">
+  <div class="modal-caja modal-caja-chica">
+    <div class="modal-header">
+      <h3>Editar usuario</h3>
+      <button type="button" class="modal-cerrar" onclick="cerrar('modal-editar')">&times;</button>
+    </div>
+    <form method="post" id="form-editar">
+      <div class="modal-body">
+        <div class="campo-sivam">
+          <label>Usuario</label>
+          <input type="text" id="editar-usuario" disabled>
+          <small class="ayuda-campo">El nombre de usuario no se puede cambiar.</small>
+        </div>
+        <div class="campo-sivam">
+          <label for="editar-nombre">Nombre completo</label>
+          <input type="text" id="editar-nombre" name="nombre_completo" autocomplete="off">
+        </div>
+        <div class="campo-sivam">
+          <label for="editar-rol">Rol</label>
+          <select id="editar-rol" name="rol" required>
+            {% for r in roles %}
+              <option value="{{ r }}">{{ r|capitalize }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="campo-sivam">
+          <label for="editar-contrasena">Nueva contraseña</label>
+          <input type="password" id="editar-contrasena" name="contrasena" autocomplete="new-password"
+                 placeholder="Dejar en blanco para no cambiarla">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="boton-secundario" onclick="cerrar('modal-editar')">Cancelar</button>
+        <button type="submit" class="boton-guardar-sivam">Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Eliminar -->
+<div class="modal-overlay" id="modal-eliminar" onclick="if(event.target.id==='modal-eliminar')cerrar('modal-eliminar')">
+  <div class="modal-caja modal-caja-chica">
+    <div class="modal-header">
+      <h3>Eliminar usuario</h3>
+      <button type="button" class="modal-cerrar" onclick="cerrar('modal-eliminar')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="eliminar-texto">¿Eliminar este usuario?</p>
+      <p class="vacio-ayuda">Esta acción no se puede deshacer.</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="boton-secundario" onclick="cerrar('modal-eliminar')">Cancelar</button>
+      <form method="post" id="form-eliminar">
+        <button type="submit" class="boton-peligro">Eliminar</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function abrir(id) { document.getElementById(id).classList.add('abierto'); }
+  function cerrar(id) { document.getElementById(id).classList.remove('abierto'); }
+
+  function abrirCrear() { abrir('modal-crear'); }
+
+  function abrirEditar(id, usuario, nombre, rol) {
+    document.getElementById('form-editar').action = '/usuarios/' + id + '/editar';
+    document.getElementById('editar-usuario').value = usuario;
+    document.getElementById('editar-nombre').value = nombre || '';
+    document.getElementById('editar-rol').value = rol;
+    document.getElementById('editar-contrasena').value = '';
+    abrir('modal-editar');
+  }
+
+  function confirmarEliminar(id, usuario) {
+    document.getElementById('eliminar-texto').textContent = '¿Eliminar al usuario "' + usuario + '"?';
+    document.getElementById('form-eliminar').action = '/usuarios/' + id + '/eliminar';
+    abrir('modal-eliminar');
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { cerrar('modal-crear'); cerrar('modal-editar'); cerrar('modal-eliminar'); }
+  });
+</script>
+{% endblock %}

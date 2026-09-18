@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ 'Editar paciente' if modo == 'editar' else 'Nuevo paciente' }} · Vista del Médico</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+  <header class="cabecera">
+    <div class="cabecera-inner">
+      <div class="cabecera-fila">
+        <span class="marca">Vista del Médico</span>
+        <a class="boton-logout" href="/logout">Cerrar sesión</a>
+      </div>
+      <svg class="linea-vital" viewBox="0 0 300 24" preserveAspectRatio="none" aria-hidden="true">
+        <polyline points="0,12 60,12 75,4 90,20 105,12 300,12" />
+      </svg>
+    </div>
+  </header>
+
+  <main class="contenedor">
+    {% if modo == 'editar' %}
+      <a class="volver" href="/?id={{ paciente_id }}">&larr; Volver a la ficha</a>
+    {% else %}
+      <a class="volver" href="/">&larr; Volver al buscador</a>
+    {% endif %}
+
+    <h1 class="titulo-form">{{ 'Editar paciente' if modo == 'editar' else 'Nuevo paciente' }}</h1>
+
+    {% if errores %}
+      <div class="errores">
+        {% for e in errores %}<p>{{ e }}</p>{% endfor %}
+      </div>
+    {% endif %}
+
+    <form method="post" class="ficha-form" action="{{ '/editar/' ~ paciente_id if modo == 'editar' else '/nuevo' }}">
+
+      <div class="campo campo-doble">
+        <label for="nombres">Nombres *</label>
+        <input type="text" id="nombres" name="nombres" value="{{ valores.get('nombres') or '' }}" required>
+      </div>
+      <div class="campo campo-doble">
+        <label for="apellidos">Apellidos *</label>
+        <input type="text" id="apellidos" name="apellidos" value="{{ valores.get('apellidos') or '' }}" required>
+      </div>
+
+      {% for campo in campos_clinicos %}
+        <div class="campo">
+          <label for="{{ campo }}">{{ etiquetas.get(campo, campo) }}</label>
+
+          {% if campo == 'edad' %}
+            <input type="number" min="0" max="120" id="{{ campo }}" name="{{ campo }}" value="{{ valores.get(campo) or '' }}">
+
+          {% elif campo == 'fecha_de_nacimiento' %}
+            <input type="date" id="{{ campo }}" name="{{ campo }}" value="{{ valores.get(campo) or '' }}">
+
+          {% elif campo == 'sexo' %}
+            <select id="{{ campo }}" name="{{ campo }}">
+              <option value="">Selecciona...</option>
+              <option value="Mujer" {{ 'selected' if valores.get(campo) == 'Mujer' }}>Mujer</option>
+              <option value="Hombre" {{ 'selected' if valores.get(campo) == 'Hombre' }}>Hombre</option>
+            </select>
+
+          {% elif campo == 'riesgo_cardiovascular_con_riesgo_o_sin_riesgo' %}
+            <select id="{{ campo }}" name="{{ campo }}">
+              <option value="">Selecciona...</option>
+              <option value="Con riesgo" {{ 'selected' if valores.get(campo) == 'Con riesgo' }}>Con riesgo</option>
+              <option value="Sin riesgo" {{ 'selected' if valores.get(campo) == 'Sin riesgo' }}>Sin riesgo</option>
+            </select>
+
+          {% else %}
+            <textarea id="{{ campo }}" name="{{ campo }}" rows="2">{{ valores.get(campo) or '' }}</textarea>
+          {% endif %}
+        </div>
+      {% endfor %}
+
+      <button type="submit" class="boton-guardar">{{ 'Guardar cambios' if modo == 'editar' else 'Guardar paciente' }}</button>
+    </form>
+  </main>
+
+</body>
+</html>

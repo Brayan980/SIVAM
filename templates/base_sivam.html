@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}SIVAM - CECAR{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23e67e22' d='M228.3 469.1 47.6 300.4c-4.2-3.9-8.2-8.1-11.9-12.4h96.8l35.9 68.1c1.9 3.7 5.9 5.9 10.1 5.7s7.8-2.9 9.4-6.7l58.3-141.9 34.1 84c1.6 4 5.5 6.6 9.7 6.7l112-.1h13.9c-3.7 4.3-7.7 8.5-11.9 12.4L283.7 469.1c-15.3 14.2-39.1 14.2-54.4 0zM473.7 73.5C505 105.4 512 154.3 490 192.5H358.7l-45.4-112c-1.6-3.9-5.4-6.4-9.6-6.5s-8.1 2.4-9.7 6.3L232.1 224.4l-33.9-64.3c-1.8-3.4-5.4-5.6-9.3-5.7s-7.6 1.8-9.6 5.1l-40.6 68.9H21.5c-22-38.3-15-87.1 16.4-119C74.9 34.8 132.4 33.9 170 66.8l4 3.5 21.6 18.9 21.6-18.9 4-3.5c37.6-32.9 95.1-32 131.9 3.5l.4.4z'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    // Modo oscuro desactivado: limpiar cualquier preferencia previa.
+    try { localStorage.removeItem('sivam-tema'); } catch (e) {}
+  </script>
+</head>
+<body class="sivam-body">
+
+  <div class="sivam-layout">
+    <!-- Sidebar -->
+    <aside class="sivam-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo"><i class="fas fa-heart-pulse"></i></div>
+        <div class="sidebar-brand">
+          <span class="brand-main">SIVAM CECAR</span>
+          <span class="brand-sub">DELFIN CECAR</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="/dashboard" class="nav-item {% if request.endpoint == 'dashboard' %}nav-item-active{% endif %}">
+          <span class="nav-icon"><i class="fas fa-chart-line"></i></span>
+          <span>Dashboard</span>
+        </a>
+        <a href="/" class="nav-item {% if request.endpoint == 'index' %}nav-item-active{% endif %}">
+          <span class="nav-icon"><i class="fas fa-users"></i></span>
+          <span>Pacientes</span>
+        </a>
+        <a href="/historia_clinica" class="nav-item {% if request.endpoint == 'historia_clinica' %}nav-item-active{% endif %}">
+          <span class="nav-icon"><i class="fas fa-file-medical"></i></span>
+          <span>Historia Clínica</span>
+        </a>
+        <a href="/antropometria" class="nav-item {% if request.endpoint == 'antropometria' %}nav-item-active{% endif %}">
+          <span class="nav-icon"><i class="fas fa-ruler-vertical"></i></span>
+          <span>Antropometría</span>
+        </a>
+        <a href="/vo2_max" class="nav-item {% if request.endpoint == 'vo2_max' %}nav-item-active{% endif %}">
+          <span class="nav-icon"><i class="fas fa-heartbeat"></i></span>
+          <span>VO2 Max</span>
+        </a>
+        {% set en_test = request.endpoint in ['test_chair_stand', 'test_tinetti', 'test_moca'] %}
+        <div class="nav-group {{ 'nav-group-abierto' if en_test }}" id="nav-group-test">
+          <button type="button" class="nav-item nav-item-toggle" onclick="toggleTest()">
+            <span class="nav-icon"><i class="fas fa-clipboard-check"></i></span>
+            <span>Test</span>
+            <span class="nav-arrow"><i class="fas fa-chevron-down"></i></span>
+          </button>
+          <div class="nav-submenu">
+            <a href="/test_chair_stand" class="nav-subitem {% if request.endpoint == 'test_chair_stand' %}nav-subitem-active{% endif %}">
+              <i class="fas fa-chair"></i> Chair Stand
+            </a>
+            <a href="/test_tinetti" class="nav-subitem {% if request.endpoint == 'test_tinetti' %}nav-subitem-active{% endif %}">
+              <i class="fas fa-walking"></i> Tinetti
+            </a>
+            <a href="/test_moca" class="nav-subitem {% if request.endpoint == 'test_moca' %}nav-subitem-active{% endif %}">
+              <i class="fas fa-brain"></i> MoCA
+            </a>
+          </div>
+        </div>
+        <a href="/caracterizacion" class="nav-item {% if request.endpoint in ['caracterizacion', 'caracterizacion_socioeconomica'] %}nav-item-active{% endif %}">
+          <span class="nav-icon"><i class="fas fa-house-user"></i></span>
+          <span>Caracterización</span>
+        </a>
+        <a href="/reporte_pendientes" class="nav-item {% if request.endpoint == 'reporte_pendientes' %}nav-item-active{% endif %}">
+          <span class="nav-icon"><i class="fas fa-chart-bar"></i></span>
+          <span>Reporte de Pendientes</span>
+        </a>
+        {% if current_user.is_authenticated and current_user.rol == 'admin' %}
+        <a href="/usuarios" class="nav-item {% if request.endpoint == 'usuarios_lista' %}nav-item-active{% endif %}">
+          <span class="nav-icon"><i class="fas fa-users-cog"></i></span>
+          <span>Usuarios</span>
+        </a>
+        {% endif %}
+        <a href="/configuracion" class="nav-item {% if request.endpoint == 'configuracion' %}nav-item-active{% endif %}">
+          <span class="nav-icon"><i class="fas fa-cog"></i></span>
+          <span>Configuración</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="/logout" class="logout-link">
+          <span class="nav-icon"><i class="fas fa-sign-out-alt"></i></span>
+          <span>Cerrar sesión</span>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="sivam-main">
+      <!-- Barra superior -->
+      <header class="topbar">
+        <div class="topbar-titulo">Sistema de Valoración del Adulto Mayor</div>
+        <div class="topbar-perfil" id="topbar-perfil">
+          <button type="button" class="perfil-boton" onclick="togglePerfil()">
+            <span class="perfil-avatar">
+              {% if current_user.is_authenticated %}{{ current_user.usuario[0]|upper }}{% else %}U{% endif %}
+            </span>
+            <span class="perfil-nombre">
+              {% if current_user.is_authenticated %}{{ current_user.usuario|upper }}{% else %}Usuario{% endif %}
+            </span>
+            <i class="fas fa-chevron-down perfil-flecha"></i>
+          </button>
+          <div class="perfil-menu" id="perfil-menu">
+            <div class="perfil-menu-info">
+              <strong>{% if current_user.is_authenticated %}{{ current_user.usuario|upper }}{% endif %}</strong>
+              <span>{% if current_user.is_authenticated %}{{ current_user.rol|capitalize }}{% endif %}</span>
+            </div>
+            <a href="/configuracion" class="perfil-menu-item"><i class="fas fa-cog"></i> Configuración</a>
+            <a href="/logout" class="perfil-menu-item perfil-menu-salir"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+          </div>
+        </div>
+      </header>
+
+      <div class="main-content">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function toggleTest() {
+      document.getElementById('nav-group-test').classList.toggle('nav-group-abierto');
+    }
+    function togglePerfil() {
+      document.getElementById('perfil-menu').classList.toggle('abierto');
+    }
+    // Cerrar el menú de perfil al hacer clic fuera
+    document.addEventListener('click', function (e) {
+      const cont = document.getElementById('topbar-perfil');
+      const menu = document.getElementById('perfil-menu');
+      if (cont && menu && !cont.contains(e.target)) {
+        menu.classList.remove('abierto');
+      }
+    });
+  </script>
+</body>
+</html>

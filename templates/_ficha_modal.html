@@ -1,0 +1,71 @@
+<div class="ficha-modal">
+  <div class="ficha-modal-nombre">
+    <strong>{{ paciente.nombres }} {{ paciente.apellidos }}</strong>
+    {% if paciente.riesgo_cardiovascular_con_riesgo_o_sin_riesgo %}
+      <span class="etiqueta-riesgo {{ 'riesgo-alto' if 'con' in paciente.riesgo_cardiovascular_con_riesgo_o_sin_riesgo|lower else 'riesgo-bajo' }}">
+        {{ paciente.riesgo_cardiovascular_con_riesgo_o_sin_riesgo }}
+      </span>
+    {% endif %}
+  </div>
+
+  {% if detalle %}
+  <dl class="ficha-datos">
+    {% for etiqueta, valor in detalle %}
+      <div class="dato">
+        <dt>{{ etiqueta }}</dt>
+        <dd>{{ valor }}</dd>
+      </div>
+    {% endfor %}
+  </dl>
+  {% else %}
+    <p class="vacio-ayuda">Sin datos clínicos registrados en la historia.</p>
+  {% endif %}
+
+  <h4 class="subtitulo-form">Datos de módulos</h4>
+  <div class="ficha-modal-modulos">
+    {% if modulos.get('antropometria') %}
+      <div class="modulo-mini">
+        <span class="modulo-mini-titulo"><i class="fas fa-ruler-vertical"></i> Antropometría</span>
+        <span>Peso {{ modulos.antropometria.peso }} kg · Talla {{ modulos.antropometria.talla }} cm · IMC {{ modulos.antropometria.imc }}</span>
+      </div>
+    {% endif %}
+    {% if modulos.get('vo2_max') %}
+      <div class="modulo-mini">
+        <span class="modulo-mini-titulo"><i class="fas fa-heartbeat"></i> VO2 Max</span>
+        <span>{{ modulos.vo2_max.vo2_max }} · {{ modulos.vo2_max.resultado }}</span>
+      </div>
+    {% endif %}
+    {% if modulos.get('test_moca') %}
+      <div class="modulo-mini">
+        <span class="modulo-mini-titulo"><i class="fas fa-brain"></i> MoCA</span>
+        <span>{{ modulos.test_moca.resultado }}{% if modulos.test_moca.puntaje_total is not none %} ({{ modulos.test_moca.puntaje_total }}/30){% endif %}</span>
+      </div>
+    {% endif %}
+    {% if modulos.get('test_tinetti') %}
+      <div class="modulo-mini">
+        <span class="modulo-mini-titulo"><i class="fas fa-walking"></i> Tinetti</span>
+        <span>{{ modulos.test_tinetti.resultado }}{% if modulos.test_tinetti.puntaje_total is not none %} ({{ modulos.test_tinetti.puntaje_total }}/28){% endif %}</span>
+      </div>
+    {% endif %}
+    {% if modulos.get('test_chair_stand') %}
+      <div class="modulo-mini">
+        <span class="modulo-mini-titulo"><i class="fas fa-chair"></i> Chair Stand</span>
+        <span>{{ modulos.test_chair_stand.resultado }}</span>
+      </div>
+    {% endif %}
+    {% if modulos.get('caracterizacion') %}
+      <div class="modulo-mini">
+        <span class="modulo-mini-titulo"><i class="fas fa-house-user"></i> Caracterización</span>
+        <span>{{ modulos.caracterizacion.escolaridad or '-' }} · {{ modulos.caracterizacion.vivienda or '-' }} · {{ modulos.caracterizacion.estado_socioeconomico or '-' }}</span>
+      </div>
+    {% endif %}
+    {% if not modulos %}
+      <p class="vacio-ayuda">Este paciente aún no tiene módulos registrados.</p>
+    {% endif %}
+  </div>
+
+  <div class="ficha-modal-pie">
+    <a class="boton-secundario" href="/?id={{ paciente.id }}">Ver ficha completa</a>
+    <a class="boton-secundario" href="/editar/{{ paciente.id }}">Editar</a>
+  </div>
+</div>

@@ -1,0 +1,201 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}Test Tinetti · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    {% if volver_url and 'seleccionar_paciente' in volver_url %}
+      <a href="{{ volver_url }}">Seleccionar paciente</a>
+    {% else %}
+      <a href="/">Pacientes</a>
+      <a href="/?id={{ paciente.id }}">Ficha</a>
+    {% endif %}
+    <span>Test Tinetti</span>
+  </div>
+  <h1 class="page-title">Nueva Prueba Tinetti</h1>
+  <p class="page-subtitle">Paciente: {{ paciente.nombres }} {{ paciente.apellidos }} | Edad: {{ paciente.edad or '-' }} años</p>
+</div>
+
+<a class="volver-sivam" href="{{ volver_url or ('/?id=' ~ paciente.id) }}">&larr; Volver</a>
+
+{% if existe %}
+  <div class="info-mensaje">
+    <i class="fas fa-info-circle"></i>
+    Este paciente ya tiene test Tinetti. Estás editando el registro existente.
+  </div>
+{% endif %}
+
+<!-- Panel de resultado en tiempo real -->
+<div class="tinetti-resultado" id="panel-resultado">
+  <div class="tinetti-resultado-titulo"><i class="fas fa-bolt"></i> Resultado en tiempo real</div>
+  <div class="tinetti-resultado-grid">
+    <div class="tinetti-res-item">
+      <span class="tinetti-res-label">Equilibrio</span>
+      <span class="tinetti-res-valor"><span id="rt-equilibrio">0</span><small> / 16</small></span>
+      <div class="tinetti-mini-barra"><span id="rt-barra-eq"></span></div>
+    </div>
+    <div class="tinetti-res-item">
+      <span class="tinetti-res-label">Marcha</span>
+      <span class="tinetti-res-valor"><span id="rt-marcha">0</span><small> / 12</small></span>
+      <div class="tinetti-mini-barra"><span id="rt-barra-ma"></span></div>
+    </div>
+    <div class="tinetti-res-item tinetti-res-total">
+      <span class="tinetti-res-label">Total</span>
+      <span class="tinetti-res-valor tinetti-res-valor-grande"><span id="rt-total">0</span><small> / 28</small></span>
+    </div>
+    <div class="tinetti-res-item">
+      <span class="tinetti-res-label">Riesgo de caída</span>
+      <span class="tinetti-res-clasif" id="rt-clasif">-</span>
+    </div>
+  </div>
+  <div class="tinetti-barra-total"><span id="rt-barra-total"></span></div>
+</div>
+
+<form method="post" class="ficha-form-sivam" id="form-tinetti">
+  <div class="campo-sivam">
+    <label for="fecha_examen">Fecha del examen</label>
+    <input type="date" id="fecha_examen" name="fecha_examen" value="{{ valores.get('fecha_examen') or '' }}">
+  </div>
+
+  <div class="tinetti-seccion-head">
+    <h3 class="subtitulo-form"><i class="fas fa-person"></i> Equilibrio</h3>
+    <span class="tinetti-seccion-contador"><b id="sec-eq">0</b> / 16</span>
+  </div>
+
+  {% set preg_eq = [
+    ('eq_sentado', '1. Equilibrio sentado (máx. 1)', [('Se recuesta o resbala de la silla', 0), ('Estable y seguro', 1)]),
+    ('eq_levanta', '2. Se levanta (máx. 2)', [('Incapaz sin ayuda', 0), ('Capaz pero usa los brazos', 1), ('Capaz sin usar los brazos', 2)]),
+    ('eq_intenta_levantar', '3. Intenta levantarse (máx. 2)', [('Incapaz sin ayuda', 0), ('Capaz pero requiere más de un intento', 1), ('Capaz de un solo intento', 2)]),
+    ('eq_inmediato_pie', '4. Equilibrio inmediato de pie (15 seg) (máx. 2)', [('Inestable (vacila, se balancea)', 0), ('Estable con bastón o se agarra', 1), ('Estable sin apoyo', 2)]),
+    ('eq_de_pie', '5. Equilibrio de pie (máx. 2)', [('Inestable', 0), ('Estable con bastón o abre los pies', 1), ('Estable sin apoyo y talones cerrados', 2)]),
+    ('eq_tocado', '6. Tocado (se le empuja levemente por el esternón 3 veces) (máx. 2)', [('Comienza a caer', 0), ('Vacila, se agarra', 1), ('Estable', 2)]),
+    ('eq_ojos_cerrados', '7. Ojos cerrados (de pie) (máx. 1)', [('Inestable', 0), ('Estable', 1)]),
+    ('eq_giro_pasos', '8a. Giro de 360° - Pasos (máx. 1)', [('Pasos discontinuos', 0), ('Pasos continuos', 1)]),
+    ('eq_giro_estabilidad', '8b. Giro de 360° - Estabilidad (máx. 1)', [('Inestable', 0), ('Estable', 1)]),
+    ('eq_sentandose', '9. Sentándose (máx. 2)', [('Inseguro, mide mal la distancia y cae en la silla', 0), ('Usa las manos', 1), ('Seguro', 2)])
+  ] %}
+
+  <div class="tinetti-grid-preguntas">
+  {% for campo, titulo, opciones in preg_eq %}
+  {% set max_val = opciones|map(attribute=1)|max %}
+  <div class="tinetti-pregunta">
+    <p class="tinetti-pregunta-titulo">{{ titulo }}</p>
+    <div class="tinetti-opciones">
+      {% for texto, valor in opciones %}
+      <label class="tinetti-opcion op-nivel-{{ valor }}{{ ' op-max' if valor == max_val else '' }}">
+        <input type="radio" name="{{ campo }}" value="{{ valor }}"
+               data-grupo="equilibrio"
+               {{ 'checked' if valores.get(campo) == valor }}>
+        <span class="tinetti-opcion-texto">{{ texto }}</span>
+        <span class="tinetti-opcion-punto">{{ valor }}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+  </div>
+
+  <div class="tinetti-seccion-head">
+    <h3 class="subtitulo-form"><i class="fas fa-shoe-prints"></i> Marcha</h3>
+    <span class="tinetti-seccion-contador"><b id="sec-ma">0</b> / 12</span>
+  </div>
+  <p class="page-subtitle">El paciente camina por un pasillo de al menos 3 metros, ida y vuelta.</p>
+
+  {% set preg_ma = [
+    ('ma_inicio', '10. Inicio de la marcha (máx. 1)', [('Vacila o múltiples intentos', 0), ('Sin vacilación', 1)]),
+    ('ma_longitud', '11. Longitud y altura del paso (máx. 2)', [('Corta / no despega el pie', 0), ('Adecuada de un lado', 1), ('Adecuada de ambos lados', 2)]),
+    ('ma_altura', '12. Altura del paso (máx. 2)', [('No despega completamente el pie', 0), ('Despega un pie', 1), ('Despega ambos pies', 2)]),
+    ('ma_simetria', '13. Simetría del paso (máx. 1)', [('Longitud desigual', 0), ('Longitud igual', 1)]),
+    ('ma_continuidad', '14. Continuidad del paso (máx. 2)', [('Detención o discontinuidad', 0), ('Leve discontinuidad', 1), ('Continuo', 2)]),
+    ('ma_trayectoria', '15. Trayectoria (máx. 2)', [('Desviación marcada', 0), ('Desviación leve o usa ayuda', 1), ('Recto sin ayuda', 2)]),
+    ('ma_equilibrio', '16. Equilibrio de pie durante la marcha (máx. 2)', [('Se inclina o balancea', 0), ('Se inclina levemente', 1), ('No se inclina', 2)])
+  ] %}
+
+  <div class="tinetti-grid-preguntas">
+  {% for campo, titulo, opciones in preg_ma %}
+  {% set max_val = opciones|map(attribute=1)|max %}
+  <div class="tinetti-pregunta">
+    <p class="tinetti-pregunta-titulo">{{ titulo }}</p>
+    <div class="tinetti-opciones">
+      {% for texto, valor in opciones %}
+      <label class="tinetti-opcion op-nivel-{{ valor }}{{ ' op-max' if valor == max_val else '' }}">
+        <input type="radio" name="{{ campo }}" value="{{ valor }}"
+               data-grupo="marcha"
+               {{ 'checked' if valores.get(campo) == valor }}>
+        <span class="tinetti-opcion-texto">{{ texto }}</span>
+        <span class="tinetti-opcion-punto">{{ valor }}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+  </div>
+
+  <h3 class="subtitulo-form"><i class="fas fa-clipboard"></i> Datos Adicionales</h3>
+
+  <div class="campo-sivam">
+    <label for="evaluador">Evaluador</label>
+    <input type="text" id="evaluador" name="evaluador" placeholder="Nombre del evaluador"
+           value="{{ valores.get('evaluador') or '' }}">
+  </div>
+
+  <div class="campo-sivam">
+    <label for="observaciones">Observaciones</label>
+    <textarea id="observaciones" name="observaciones" rows="3" placeholder="Observaciones adicionales...">{{ valores.get('observaciones') or '' }}</textarea>
+  </div>
+
+  <button type="submit" class="boton-guardar-sivam">
+    {{ 'Actualizar' if existe else 'Guardar' }} prueba
+  </button>
+</form>
+
+<script>
+  (function () {
+    const form = document.getElementById('form-tinetti');
+
+    function sumaGrupo(grupo) {
+      let total = 0;
+      form.querySelectorAll('input[type=radio][data-grupo="' + grupo + '"]:checked').forEach(function (r) {
+        total += parseInt(r.value, 10) || 0;
+      });
+      return total;
+    }
+
+    function actualizar() {
+      const eq = sumaGrupo('equilibrio');
+      const ma = sumaGrupo('marcha');
+      const total = eq + ma;
+
+      document.getElementById('rt-equilibrio').textContent = eq;
+      document.getElementById('rt-marcha').textContent = ma;
+      document.getElementById('rt-total').textContent = total;
+      document.getElementById('sec-eq').textContent = eq;
+      document.getElementById('sec-ma').textContent = ma;
+
+      // Barras de progreso
+      document.getElementById('rt-barra-eq').style.width = (eq / 16 * 100) + '%';
+      document.getElementById('rt-barra-ma').style.width = (ma / 12 * 100) + '%';
+      document.getElementById('rt-barra-total').style.width = (total / 28 * 100) + '%';
+
+      let clasif, clase;
+      if (total >= 24) { clasif = 'BAJO RIESGO'; clase = 'clasif-bajo'; }
+      else if (total >= 19) { clasif = 'RIESGO MODERADO'; clase = 'clasif-moderado'; }
+      else { clasif = 'ALTO RIESGO'; clase = 'clasif-alto'; }
+
+      const el = document.getElementById('rt-clasif');
+      el.textContent = clasif;
+      el.className = 'tinetti-res-clasif ' + clase;
+
+      const barraTotal = document.getElementById('rt-barra-total');
+      barraTotal.className = 'barra-' + clase;
+    }
+
+    form.querySelectorAll('input[type=radio]').forEach(function (r) {
+      r.addEventListener('change', actualizar);
+    });
+    actualizar();
+  })();
+</script>
+{% endblock %}

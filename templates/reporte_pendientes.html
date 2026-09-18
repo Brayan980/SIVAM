@@ -1,0 +1,122 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}Reporte de Pendientes · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <span>Reporte de Pendientes</span>
+  </div>
+  <h1 class="page-title">Reporte de Pendientes</h1>
+  <p class="page-subtitle">Pacientes pendientes por examen</p>
+</div>
+
+<div class="dashboard-grid">
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-green">
+        <i class="fas fa-users"></i>
+      </div>
+    </div>
+    <div class="card-value">{{ total_pacientes }}</div>
+    <div class="card-label">Total Pacientes</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-green">
+        <i class="fas fa-check-circle"></i>
+      </div>
+    </div>
+    <div class="card-value" style="color: var(--riesgo-bajo);">{{ completos }}</div>
+    <div class="card-label">Completos</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-orange">
+        <i class="fas fa-clock"></i>
+      </div>
+    </div>
+    <div class="card-value" style="color: var(--riesgo-alto);">{{ pendientes }}</div>
+    <div class="card-label">Pendientes</div>
+  </div>
+</div>
+
+<div class="contenedor-examenes">
+  <h3 class="subtitulo-form">Seleccionar Examenes</h3>
+  <form method="get" action="/reporte_pendientes" class="examenes-form" id="form-examenes">
+    {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+    <input type="hidden" name="aplicado" value="1">
+    <div class="examenes-grid">
+      <label class="examen-checkbox">
+        <input type="checkbox" name="examenes" value="antropometria" onchange="document.getElementById('form-examenes').submit()" {{ 'checked' if 'antropometria' in examenes_seleccionados }}>
+        <span>Antropometría</span>
+      </label>
+      <label class="examen-checkbox">
+        <input type="checkbox" name="examenes" value="vo2_max" onchange="document.getElementById('form-examenes').submit()" {{ 'checked' if 'vo2_max' in examenes_seleccionados }}>
+        <span>VO2 Max</span>
+      </label>
+      <label class="examen-checkbox">
+        <input type="checkbox" name="examenes" value="test_moca" onchange="document.getElementById('form-examenes').submit()" {{ 'checked' if 'test_moca' in examenes_seleccionados }}>
+        <span>MoCA</span>
+      </label>
+      <label class="examen-checkbox">
+        <input type="checkbox" name="examenes" value="test_tinetti" onchange="document.getElementById('form-examenes').submit()" {{ 'checked' if 'test_tinetti' in examenes_seleccionados }}>
+        <span>Tinetti</span>
+      </label>
+      <label class="examen-checkbox">
+        <input type="checkbox" name="examenes" value="test_chair_stand" onchange="document.getElementById('form-examenes').submit()" {{ 'checked' if 'test_chair_stand' in examenes_seleccionados }}>
+        <span>Chair Stand</span>
+      </label>
+    </div>
+    <button type="submit" class="boton-guardar-sivam">Actualizar reporte</button>
+  </form>
+</div>
+
+<section class="tabla-panel-sivam">
+  <h2 class="tabla-panel-titulo"><i class="fas fa-users"></i> Pacientes</h2>
+
+  <form class="buscador-sivam" method="get" action="/reporte_pendientes">
+    {% for ex in examenes_seleccionados %}
+      <input type="hidden" name="examenes" value="{{ ex }}">
+    {% endfor %}
+    <div class="buscador-fila">
+      <input type="text" name="q" value="{{ query }}" placeholder="Buscar paciente por nombre..." autocomplete="off">
+      <button type="submit">Buscar</button>
+    </div>
+  </form>
+
+  <div class="tabla-container">
+    <table class="tabla-pacientes">
+      <thead>
+        <tr>
+          <th>Paciente</th>
+          <th>Sexo</th>
+          {% for ex in examenes_seleccionados %}
+            <th>{{ etiquetas_ex[ex] }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in filas %}
+        <tr>
+          <td><strong>{{ f.apellidos }} {{ f.nombres }}</strong></td>
+          <td>{{ f.sexo if f.sexo else '-' }}</td>
+          {% for ex in examenes_seleccionados %}
+            <td class="celda-estado">
+              {% if f.estado[ex] %}
+                <span class="estado-ok">OK</span>
+              {% else %}
+                <span class="estado-falta">-</span>
+              {% endif %}
+            </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

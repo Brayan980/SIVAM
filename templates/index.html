@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vista del Médico</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+  <header class="cabecera">
+    <div class="cabecera-inner">
+      <div class="cabecera-fila">
+        <span class="marca">Vista del Médico</span>
+        <div class="cabecera-botones">
+          <a class="boton-nuevo" href="/nuevo">+ Agregar paciente</a>
+          <a class="boton-logout" href="/logout">Cerrar sesión</a>
+        </div>
+      </div>
+      <svg class="linea-vital" viewBox="0 0 300 24" preserveAspectRatio="none" aria-hidden="true">
+        <polyline points="0,12 60,12 75,4 90,20 105,12 300,12" />
+      </svg>
+    </div>
+  </header>
+
+  <main class="contenedor">
+
+    <form class="buscador" method="get" action="/">
+      <label for="q" class="buscador-etiqueta">Nombre o apellido del paciente</label>
+      <div class="buscador-fila">
+        <input
+          type="text"
+          id="q"
+          name="q"
+          value="{{ query }}"
+          placeholder="Ej. Alba Marina Chávez"
+          autocomplete="off"
+          autofocus>
+        <button type="submit">Buscar</button>
+      </div>
+    </form>
+
+    {# --- Caso 1: coincidencia unica -> mostramos la ficha completa --- #}
+    {% if paciente %}
+      <section class="ficha">
+        <div class="ficha-header">
+          <h1>{{ paciente.nombres }} {{ paciente.apellidos }}</h1>
+          {% if paciente.riesgo_cardiovascular_con_riesgo_o_sin_riesgo %}
+            <span class="etiqueta-riesgo {{ 'riesgo-alto' if 'con' in paciente.riesgo_cardiovascular_con_riesgo_o_sin_riesgo|lower else 'riesgo-bajo' }}">
+              {{ paciente.riesgo_cardiovascular_con_riesgo_o_sin_riesgo }}
+            </span>
+          {% endif %}
+        </div>
+
+        <dl class="ficha-datos">
+          {% for etiqueta, valor in detalle %}
+            <div class="dato">
+              <dt>{{ etiqueta }}</dt>
+              <dd>{{ valor }}</dd>
+            </div>
+          {% endfor %}
+        </dl>
+
+        <div class="ficha-pie">
+          <a class="volver" href="/?q={{ query }}">&larr; Volver a resultados</a>
+          <div class="ficha-acciones">
+            <a class="boton-secundario" href="/editar/{{ paciente.id }}">Editar</a>
+            <form method="post" action="/eliminar/{{ paciente.id }}"
+                  onsubmit="return confirm('¿Eliminar a {{ paciente.nombres }} {{ paciente.apellidos }}? Esta acción no se puede deshacer.');">
+              <button type="submit" class="boton-peligro">Eliminar</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+    {# --- Caso 2: varias coincidencias -> lista para elegir --- #}
+    {% elif resultados %}
+      <section class="lista-resultados">
+        <p class="conteo">{{ resultados|length }} pacientes encontrados</p>
+        {% for r in resultados %}
+          <a class="fila-resultado" href="/?id={{ r.id }}&q={{ query }}">
+            <span class="fila-nombre">{{ r.nombres }} {{ r.apellidos }}</span>
+            <span class="fila-meta">
+              {% if r.edad %}{{ r.edad|int }} años{% endif %}
+              {% if r.barrio %} · {{ r.barrio }}{% endif %}
+            </span>
+          </a>
+        {% endfor %}
+      </section>
+
+    {# --- Caso 3: se buscó pero no hubo coincidencias --- #}
+    {% elif query %}
+      <section class="vacio">
+        <p>No se encontró ningún paciente que coincida con "<strong>{{ query }}</strong>".</p>
+        <p class="vacio-ayuda">Revisa la ortografía o intenta solo con el apellido.</p>
+      </section>
+
+    {# --- Caso 4: estado inicial, sin busqueda --- #}
+    {% else %}
+      <section class="vacio">
+        <p>Escribe un nombre o apellido para consultar el historial clínico de un paciente.</p>
+      </section>
+    {% endif %}
+
+  </main>
+
+</body>
+</html>

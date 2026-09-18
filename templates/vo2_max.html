@@ -1,0 +1,85 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}VO2 Max · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <a href="/vo2_max">VO2 Max</a>
+    <span>Nueva Prueba</span>
+  </div>
+  <h1 class="page-title">Nueva Prueba VO2 Max</h1>
+  <p class="page-subtitle">Paciente: {{ paciente.nombres }} {{ paciente.apellidos }} | Edad: {{ paciente.edad or '-' }} años</p>
+</div>
+
+<a class="volver-sivam" href="{{ volver_url or ('/?id=' ~ paciente.id) }}">&larr; Volver</a>
+
+{% if existe %}
+  <div class="info-mensaje">
+    <i class="fas fa-info-circle"></i>
+    Este paciente ya tiene datos de VO2 Max. Estás editando el registro existente.
+  </div>
+{% endif %}
+
+<form method="post" class="hc-form">
+
+  {# ===== Signos Vitales ===== #}
+  <section class="form-seccion">
+    <h3 class="form-seccion-titulo"><i class="fas fa-heartbeat"></i> Signos Vitales</h3>
+    <div class="form-grid">
+      <div class="campo-sivam">
+        <label for="fecha_examen">Fecha del examen</label>
+        <input type="date" id="fecha_examen" name="fecha_examen" value="{{ valores.get('fecha_examen') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="edad">Edad</label>
+        <input type="number" id="edad" name="edad" value="{{ valores.get('edad') or paciente.edad or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="ta">TA (Presión Arterial)</label>
+        <input type="text" id="ta" name="ta" value="{{ valores.get('ta') or '' }}" placeholder="Ej: 120/80">
+      </div>
+      <div class="campo-sivam">
+        <label for="fc">FC Reposo (bpm)</label>
+        <input type="text" id="fc" name="fc" value="{{ valores.get('fc') or '' }}" placeholder="Ej: 72">
+      </div>
+      <div class="campo-sivam">
+        <label for="fc_max">FC Máxima</label>
+        <input type="number" step="0.1" id="fc_max" name="fc_max" value="{{ valores.get('fc_max') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="spo2">SpO2 (%)</label>
+        <input type="number" step="0.1" id="spo2" name="spo2" value="{{ valores.get('spo2') or '' }}">
+      </div>
+    </div>
+  </section>
+
+  {# ===== VO2 Max ===== #}
+  <section class="form-seccion">
+    <h3 class="form-seccion-titulo"><i class="fas fa-lungs"></i> VO2 Max</h3>
+    <div class="form-grid">
+      <div class="campo-sivam">
+        <label for="vo2_max">VO2 Max (ml/kg/min)</label>
+        <input type="number" step="0.1" id="vo2_max" name="vo2_max" value="{{ valores.get('vo2_max') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="resultado">Resultado (automático)</label>
+        <input type="text" id="resultado" value="{{ valores.get('resultado') or 'Se calcula al guardar' }}" readonly>
+        <small class="ayuda-campo">Se calcula automáticamente según el VO2 Max, la edad y el sexo del paciente (escala Cooper/ACSM).</small>
+      </div>
+      <div class="campo-sivam campo-ancho">
+        <label for="observaciones">Observaciones</label>
+        <textarea id="observaciones" name="observaciones" rows="3">{{ valores.get('observaciones') or '' }}</textarea>
+      </div>
+    </div>
+  </section>
+
+  <div class="form-acciones">
+    <a class="boton-secundario" href="/vo2_max">Cancelar</a>
+    <button type="submit" class="boton-guardar-sivam">
+      {{ 'Actualizar' if existe else 'Guardar' }} Prueba VO2 Max
+    </button>
+  </div>
+</form>
+{% endblock %}

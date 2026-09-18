@@ -1,0 +1,80 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}Caracterización Socioeconómica · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <a href="/">Pacientes</a>
+    <a href="/?id={{ paciente.id }}">Ficha</a>
+    <span>Caracterización Socioeconómica</span>
+  </div>
+  <h1 class="page-title">Caracterización Socioeconómica</h1>
+  <p class="page-subtitle">Perfil socioeconómico: {{ paciente.nombres }} {{ paciente.apellidos }}</p>
+</div>
+
+<a class="volver-sivam" href="{{ volver_url or ('/?id=' ~ paciente.id) }}">&larr; Volver</a>
+
+{% if existe %}
+  <div class="info-mensaje">
+    <i class="fas fa-info-circle"></i>
+    Este paciente ya tiene caracterización socioeconómica. Estás editando el registro existente.
+  </div>
+{% endif %}
+
+<form method="post" class="ficha-form-sivam">
+  <div class="campo-sivam">
+    <label for="fecha_examen">Fecha del examen</label>
+    <input type="date" id="fecha_examen" name="fecha_examen" value="{{ valores.get('fecha_examen') or '' }}">
+  </div>
+
+  <div class="campo-sivam">
+    <label for="escolaridad">Escolaridad</label>
+    <select id="escolaridad" name="escolaridad">
+      <option value="">Selecciona...</option>
+      <option value="Bachiller" {{ 'selected' if valores.get('escolaridad') == 'Bachiller' }}>Bachiller</option>
+      <option value="Técnico" {{ 'selected' if valores.get('escolaridad') == 'Técnico' }}>Técnico</option>
+      <option value="Universitarios" {{ 'selected' if valores.get('escolaridad') == 'Universitarios' }}>Universitarios</option>
+      <option value="Ninguno" {{ 'selected' if valores.get('escolaridad') == 'Ninguno' }}>Ninguno</option>
+    </select>
+  </div>
+
+  <div class="campo-sivam">
+    <label for="vivienda">Vivienda</label>
+    <select id="vivienda" name="vivienda">
+      <option value="">Selecciona...</option>
+      <option value="Propia" {{ 'selected' if valores.get('vivienda') == 'Propia' }}>Propia</option>
+      <option value="Familiar" {{ 'selected' if valores.get('vivienda') == 'Familiar' }}>Familiar</option>
+      <option value="Arrendada" {{ 'selected' if valores.get('vivienda') == 'Arrendada' }}>Arrendada</option>
+    </select>
+  </div>
+
+  <div class="campo-sivam">
+    <label for="con_quien_convive">Con quién convive</label>
+    <select id="con_quien_convive" name="con_quien_convive">
+      <option value="">Selecciona...</option>
+      <option value="Solo" {{ 'selected' if valores.get('con_quien_convive') == 'Solo' }}>Solo</option>
+      <option value="Familia" {{ 'selected' if valores.get('con_quien_convive') == 'Familia' }}>Familia</option>
+      <option value="Otro" {{ 'selected' if valores.get('con_quien_convive') == 'Otro' }}>Otro</option>
+    </select>
+  </div>
+
+  <div class="campo-sivam">
+    <label for="estado_socioeconomico">Estado socioeconómico</label>
+    <select id="estado_socioeconomico" name="estado_socioeconomico">
+      <option value="">Selecciona...</option>
+      <option value="Estrato 1" {{ 'selected' if valores.get('estado_socioeconomico') == 'Estrato 1' }}>Estrato 1</option>
+      <option value="Estrato 2" {{ 'selected' if valores.get('estado_socioeconomico') == 'Estrato 2' }}>Estrato 2</option>
+      <option value="Estrato 3" {{ 'selected' if valores.get('estado_socioeconomico') == 'Estrato 3' }}>Estrato 3</option>
+      <option value="Estrato 4" {{ 'selected' if valores.get('estado_socioeconomico') == 'Estrato 4' }}>Estrato 4</option>
+      <option value="Estrato 5" {{ 'selected' if valores.get('estado_socioeconomico') == 'Estrato 5' }}>Estrato 5</option>
+      <option value="Estrato 6" {{ 'selected' if valores.get('estado_socioeconomico') == 'Estrato 6' }}>Estrato 6</option>
+    </select>
+  </div>
+
+  <button type="submit" class="boton-guardar-sivam">
+    {{ 'Actualizar' if existe else 'Guardar' }} caracterización
+  </button>
+</form>
+{% endblock %}

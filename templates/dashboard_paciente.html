@@ -1,0 +1,221 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}Dashboard de {{ paciente.nombres }} · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <a href="/?id={{ paciente.id }}">Pacientes</a>
+    <span>Dashboard</span>
+  </div>
+  <div class="page-header-actions">
+    <h1 class="page-title">{{ paciente.nombres }} {{ paciente.apellidos }}</h1>
+    <a class="boton-secundario" href="/?id={{ paciente.id }}">&larr; Volver a la ficha</a>
+  </div>
+  <p class="page-subtitle">Resumen individual de evaluaciones y resultados</p>
+</div>
+
+<!-- Datos generales del paciente -->
+<section class="pac-resumen">
+  <div class="pac-resumen-item">
+    <span class="pac-resumen-label">Edad</span>
+    <span class="pac-resumen-valor">{{ (paciente.edad|int ~ ' años') if paciente.edad else '—' }}</span>
+  </div>
+  <div class="pac-resumen-item">
+    <span class="pac-resumen-label">Sexo</span>
+    <span class="pac-resumen-valor">{{ paciente.sexo or '—' }}</span>
+  </div>
+  <div class="pac-resumen-item">
+    <span class="pac-resumen-label">Barrio</span>
+    <span class="pac-resumen-valor">{{ paciente.barrio or '—' }}</span>
+  </div>
+  <div class="pac-resumen-item">
+    <span class="pac-resumen-label">Evaluaciones</span>
+    <span class="pac-resumen-valor">{{ realizados }} de 6</span>
+  </div>
+</section>
+
+{% if tarjetas %}
+<!-- Medidores de resultados -->
+<div class="pac-gauges-grid">
+  {% for t in tarjetas %}
+  <div class="pac-gauge-card estado-{{ t.estado }}">
+    <div class="pac-gauge-head">
+      <i class="fas {{ t.icono }}"></i>
+      <span>{{ t.titulo }}</span>
+    </div>
+    <div class="pac-gauge-canvas-wrap">
+      <canvas class="pac-gauge"
+              data-valor="{{ t.gauge }}"
+              data-max="{{ t.max }}"
+              data-estado="{{ t.estado }}"></canvas>
+      <div class="pac-gauge-centro">
+        <strong>{{ t.valor_txt }}</strong>
+        <small>{{ t.unidad }}</small>
+      </div>
+    </div>
+    <div class="pac-gauge-nivel nivel-{{ t.estado }}">{{ t.nivel }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="info-mensaje">
+  <i class="fas fa-info-circle"></i>
+  Este paciente aún no tiene evaluaciones con datos numéricos para graficar.
+</div>
+{% endif %}
+
+<!-- Detalle por módulo -->
+<div class="pac-detalle-grid">
+  {% if antro %}
+  <div class="dato-card">
+    <div class="dato-card-head">
+      <span class="dato-card-icono"><i class="fas fa-ruler-vertical"></i></span>
+      <h4>Antropometría</h4>
+      <a href="/registrar_modulo/antropometria/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+    </div>
+    <div class="dato-card-chips">
+      {% if antro.peso %}<span class="chip">{{ antro.peso }} kg</span>{% endif %}
+      {% if antro.talla %}<span class="chip">{{ antro.talla }} cm</span>{% endif %}
+      {% if antro.imc %}<span class="chip chip-destacado">IMC {{ antro.imc }}</span>{% endif %}
+      {% if antro.circunferencia_cintura %}<span class="chip">Cintura {{ antro.circunferencia_cintura }}</span>{% endif %}
+      {% if antro.circunferencia_cadera %}<span class="chip">Cadera {{ antro.circunferencia_cadera }}</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if vo2 %}
+  <div class="dato-card">
+    <div class="dato-card-head">
+      <span class="dato-card-icono"><i class="fas fa-heartbeat"></i></span>
+      <h4>VO2 Max</h4>
+      <a href="/registrar_modulo/vo2_max/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+    </div>
+    <div class="dato-card-chips">
+      {% if vo2.vo2_max %}<span class="chip">{{ vo2.vo2_max }} ml/kg/min</span>{% endif %}
+      {% if vo2.resultado %}<span class="chip chip-destacado">{{ vo2.resultado }}</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if moca %}
+  <div class="dato-card">
+    <div class="dato-card-head">
+      <span class="dato-card-icono"><i class="fas fa-brain"></i></span>
+      <h4>Test MoCA</h4>
+      <a href="/registrar_modulo/test_moca/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+    </div>
+    <div class="dato-card-chips">
+      {% if moca.puntaje_total is not none %}<span class="chip">{{ moca.puntaje_total }} / 30</span>{% endif %}
+      {% if moca.resultado %}<span class="chip chip-destacado">{{ moca.resultado }}</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if tinetti %}
+  <div class="dato-card">
+    <div class="dato-card-head">
+      <span class="dato-card-icono"><i class="fas fa-walking"></i></span>
+      <h4>Test Tinetti</h4>
+      <a href="/registrar_modulo/test_tinetti/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+    </div>
+    <div class="dato-card-chips">
+      {% if tinetti.puntaje_total is not none %}<span class="chip">{{ tinetti.puntaje_total }} / 28</span>{% endif %}
+      {% if tinetti.resultado %}<span class="chip chip-destacado">{{ tinetti.resultado }}</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if chair %}
+  <div class="dato-card">
+    <div class="dato-card-head">
+      <span class="dato-card-icono"><i class="fas fa-chair"></i></span>
+      <h4>Test Chair Stand</h4>
+      <a href="/registrar_modulo/test_chair_stand/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+    </div>
+    <div class="dato-card-chips">
+      {% if chair.repeticiones is not none %}<span class="chip">{{ chair.repeticiones }} reps</span>{% endif %}
+      {% if chair.resultado %}<span class="chip chip-destacado">{{ chair.resultado }}</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if caract %}
+  <div class="dato-card">
+    <div class="dato-card-head">
+      <span class="dato-card-icono"><i class="fas fa-house-user"></i></span>
+      <h4>Caracterización</h4>
+      <a href="/registrar_modulo/caracterizacion/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+    </div>
+    <div class="dato-card-chips">
+      {% if caract.escolaridad %}<span class="chip">{{ caract.escolaridad }}</span>{% endif %}
+      {% if caract.vivienda %}<span class="chip">{{ caract.vivienda }}</span>{% endif %}
+      {% if caract.estado_socioeconomico %}<span class="chip chip-destacado">{{ caract.estado_socioeconomico }}</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+  .pac-resumen { display: flex; flex-wrap: wrap; gap: 1.5rem; background:#fff;
+    border:1px solid #e5e7eb; border-radius:12px; padding:1.1rem 1.4rem; margin-bottom:1.4rem; }
+  .pac-resumen-item { display:flex; flex-direction:column; }
+  .pac-resumen-label { font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; }
+  .pac-resumen-valor { font-size:1.15rem; font-weight:700; color:#1f2937; }
+
+  .pac-gauges-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
+    gap:1.1rem; margin-bottom:1.6rem; }
+  .pac-gauge-card { background:#fff; border:1px solid #e5e7eb; border-radius:12px;
+    padding:1rem; border-top:4px solid #9ca3af; }
+  .pac-gauge-card.estado-bueno { border-top-color:#2E7D32; }
+  .pac-gauge-card.estado-medio { border-top-color:#F39C12; }
+  .pac-gauge-card.estado-malo  { border-top-color:#C0392B; }
+  .pac-gauge-head { display:flex; align-items:center; gap:.5rem; font-weight:600;
+    color:#374151; margin-bottom:.4rem; }
+  .pac-gauge-head i { color:#2E7D32; }
+  .pac-gauge-canvas-wrap { position:relative; width:100%; max-width:180px; margin:0 auto; }
+  .pac-gauge-centro { position:absolute; left:0; right:0; bottom:6px; text-align:center; }
+  .pac-gauge-centro strong { display:block; font-size:1.5rem; color:#1f2937; line-height:1; }
+  .pac-gauge-centro small { color:#6b7280; font-size:.72rem; }
+  .pac-gauge-nivel { text-align:center; margin-top:.5rem; font-weight:700;
+    padding:.25rem .5rem; border-radius:999px; font-size:.85rem; }
+  .pac-gauge-nivel.nivel-bueno { background:#e6f4ea; color:#2E7D32; }
+  .pac-gauge-nivel.nivel-medio { background:#fef3e2; color:#B9770E; }
+  .pac-gauge-nivel.nivel-malo  { background:#fdecea; color:#C0392B; }
+
+  .pac-detalle-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:1rem; }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  const COLORES_ESTADO = { bueno: '#2E7D32', medio: '#F39C12', malo: '#C0392B' };
+
+  document.querySelectorAll('.pac-gauge').forEach(function (canvas) {
+    const valor = parseFloat(canvas.dataset.valor) || 0;
+    const max = parseFloat(canvas.dataset.max) || 1;
+    const estado = canvas.dataset.estado || 'medio';
+    const color = COLORES_ESTADO[estado] || '#9ca3af';
+    const pct = Math.max(0, Math.min(valor / max, 1));
+
+    new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        datasets: [{
+          data: [pct, 1 - pct],
+          backgroundColor: [color, '#eceff1'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        circumference: 180,
+        rotation: 270,
+        cutout: '72%',
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        responsive: true,
+        maintainAspectRatio: true
+      }
+    });
+  });
+</script>
+{% endblock %}

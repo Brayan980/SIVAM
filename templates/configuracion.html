@@ -1,0 +1,97 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}Configuración · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <span>Configuración</span>
+  </div>
+  <h1 class="page-title">Configuración</h1>
+  <p class="page-subtitle">Configuración del sistema SIVAM</p>
+</div>
+
+<div class="config-grid">
+  <!-- General -->
+  <div class="config-card">
+    <div class="config-card-header">
+      <i class="fas fa-cog"></i>
+      <h3>General</h3>
+    </div>
+    <p class="config-card-sub">Información del sistema</p>
+    <div class="config-lista">
+      <div class="config-item">
+        <span>Versión</span>
+        <strong>{{ version }}</strong>
+      </div>
+      <div class="config-item">
+        <span>Total pacientes</span>
+        <strong>{{ total_pacientes }}</strong>
+      </div>
+      <div class="config-item">
+        <span>Base de datos</span>
+        <strong>SQLite (local)</strong>
+      </div>
+      {% if usuario %}
+      <div class="config-item">
+        <span>Sesión</span>
+        <strong>{{ usuario }}{% if rol %} ({{ rol }}){% endif %}</strong>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Cognitiva -->
+  <div class="config-card">
+    <div class="config-card-header">
+      <i class="fas fa-brain"></i>
+      <h3>Cognitiva</h3>
+    </div>
+    <p class="config-card-sub">Evaluación cognitiva de los pacientes del programa</p>
+    <div class="config-lista">
+      <div class="config-item">
+        <span>Evaluaciones MoCA</span>
+        <strong>{{ total_moca }}</strong>
+      </div>
+    </div>
+    <a href="/test_moca" class="btn-sivam btn-sivam-primary config-btn">Ir a MoCA</a>
+  </div>
+
+  <!-- Apariencia -->
+  <div class="config-card">
+    <div class="config-card-header">
+      <i class="fas fa-sun"></i>
+      <h3>Apariencia</h3>
+    </div>
+    <p class="config-card-sub">Personaliza la apariencia del sistema</p>
+    <div class="config-item">
+      <span>Modo oscuro</span>
+      <label class="switch-tema">
+        <input type="checkbox" id="toggle-tema">
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const chk = document.getElementById('toggle-tema');
+    const raiz = document.documentElement;
+
+    function aplicar(tema) {
+      if (tema === 'oscuro') { raiz.classList.add('tema-oscuro'); chk.checked = true; }
+      else { raiz.classList.remove('tema-oscuro'); chk.checked = false; }
+    }
+
+    aplicar(localStorage.getItem('sivam-tema') || 'claro');
+
+    chk.addEventListener('change', function () {
+      const nuevo = chk.checked ? 'oscuro' : 'claro';
+      localStorage.setItem('sivam-tema', nuevo);
+      aplicar(nuevo);
+    });
+  })();
+</script>
+{% endblock %}

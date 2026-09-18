@@ -1,0 +1,79 @@
+<div class="hc-modal">
+  <div class="hc-modal-titulo">
+    <i class="fas fa-file-medical"></i>
+    <div>
+      <strong>Historia Clínica - {{ p.nombres }} {{ p.apellidos }}</strong>
+      <span class="hc-modal-sub">{{ (p.edad|int ~ ' años') if p.edad else '' }}{% if p.fecha_creacion %} | {{ p.fecha_creacion }}{% endif %}</span>
+    </div>
+  </div>
+
+  {# Sección: Datos del Paciente #}
+  <div class="hc-seccion hc-abierta">
+    <button type="button" class="hc-seccion-head" onclick="this.parentElement.classList.toggle('hc-abierta')">
+      <span>Datos del Paciente</span>
+      <i class="fas fa-chevron-down"></i>
+    </button>
+    <div class="hc-seccion-body">
+      <div class="hc-datos-grid">
+        <div><span>Paciente</span><strong>{{ p.nombres }} {{ p.apellidos }}</strong></div>
+        <div><span>Edad</span><strong>{{ (p.edad|int ~ ' años') if p.edad else '-' }}</strong></div>
+        <div><span>Sexo</span><strong>{{ p.sexo or '-' }}</strong></div>
+        <div><span>Fecha de nacimiento</span><strong>{{ p.fecha_de_nacimiento or '-' }}</strong></div>
+        <div><span>Barrio</span><strong>{{ p.barrio or '-' }}</strong></div>
+        <div><span>Riesgo CV</span><strong>{{ p.riesgo_cardiovascular_con_riesgo_o_sin_riesgo or '-' }}</strong></div>
+      </div>
+    </div>
+  </div>
+
+  {# Sección: Antecedentes #}
+  <div class="hc-seccion">
+    <button type="button" class="hc-seccion-head" onclick="this.parentElement.classList.toggle('hc-abierta')">
+      <span>Antecedentes</span>
+      <i class="fas fa-chevron-down"></i>
+    </button>
+    <div class="hc-seccion-body">
+      <div class="hc-datos-lista">
+        <div><span>Antecedentes familiares:</span> {{ p.antecedentes_familiares or '-' }}</div>
+        <div><span>Vive con:</span> {{ p.con_quien_vives or '-' }}</div>
+        <div><span>Caídas previas:</span> {{ p.caidas_previas or '-' }}</div>
+        <div><span>Lesiones musculoesqueléticas:</span> {{ p.lesiones_musculoesqueleticas_o_cirugia or '-' }}</div>
+      </div>
+    </div>
+  </div>
+
+  {# Sección: Datos Médicos #}
+  <div class="hc-seccion">
+    <button type="button" class="hc-seccion-head" onclick="this.parentElement.classList.toggle('hc-abierta')">
+      <span>Datos Médicos</span>
+      <i class="fas fa-chevron-down"></i>
+    </button>
+    <div class="hc-seccion-body">
+      <div class="hc-datos-lista">
+        <div><span>Patología actual:</span> {{ p.patologia_actual or '-' }}</div>
+        <div><span>Medicación y suplementación:</span> {{ p.medicacion_y_suplementacion or '-' }}</div>
+        <div><span>Medicación / suplementación (adicional):</span> {{ p.medicacion_sumplementacion or '-' }}</div>
+        <div><span>Alergias:</span> {{ p.alergias or '-' }}</div>
+        <div><span>Actividad sexual:</span> {{ p.actividad_sexual or '-' }}</div>
+      </div>
+    </div>
+  </div>
+
+  {# Sección: Hábitos #}
+  <div class="hc-seccion">
+    <button type="button" class="hc-seccion-head" onclick="this.parentElement.classList.toggle('hc-abierta')">
+      <span>Hábitos y Actividad</span>
+      <i class="fas fa-chevron-down"></i>
+    </button>
+    <div class="hc-seccion-body">
+      <div class="hc-datos-lista">
+        <div><span>Hábitos y estilo de vida:</span> {{ p.habitos_y_estilos_de_vida_alcohol_tabaco_azucares_alimentos_procesados or '-' }}</div>
+        <div><span>Ejercicio y actividad física:</span> {{ p.ejercicio_y_actividad_fisica_leve_moderado_intenso or '-' }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hc-modal-pie">
+    <a class="boton-secundario" href="/?id={{ p.id }}">Ver ficha completa</a>
+    <a class="boton-secundario" href="/editar/{{ p.id }}">Editar</a>
+  </div>
+</div>

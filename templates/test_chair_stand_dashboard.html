@@ -1,0 +1,222 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}Test Chair Stand · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <span>Test Chair Stand</span>
+  </div>
+  <div class="page-header-actions">
+    <h1 class="page-title">Test Chair Stand</h1>
+    <a href="/seleccionar_paciente?modulo=test_chair_stand_formulario" class="btn-sivam btn-sivam-primary">
+      <i class="fas fa-plus"></i> Nueva prueba
+    </a>
+  </div>
+  <p class="page-subtitle">Prueba de levantarse de la silla</p>
+</div>
+
+<div class="dashboard-grid dashboard-grid-small">
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-green">
+        <i class="fas fa-chair"></i>
+      </div>
+    </div>
+    <div class="card-value">{{ total_tests }}</div>
+    <div class="card-label">Total Pruebas</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-green">
+        <i class="fas fa-check-circle"></i>
+      </div>
+    </div>
+    <div class="card-value" style="color: var(--riesgo-bajo);">{{ total_tests }}</div>
+    <div class="card-label">Completas</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-orange">
+        <i class="fas fa-exclamation-triangle"></i>
+      </div>
+    </div>
+    <div class="card-value" style="color: var(--riesgo-alto);">{{ pendientes }}</div>
+    <div class="card-label">Faltan datos</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-green"><i class="fas fa-trophy"></i></div>
+    </div>
+    <div class="card-value" style="color:#1f7a44;">{{ superior }}</div>
+    <div class="card-label">Superior</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-green"><i class="fas fa-arrow-up"></i></div>
+    </div>
+    <div class="card-value" style="color:#1f7a44;">{{ alto }}</div>
+    <div class="card-label">Alto</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-orange"><i class="fas fa-equals"></i></div>
+    </div>
+    <div class="card-value" style="color:#a5750f;">{{ promedio }}</div>
+    <div class="card-label">Promedio</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-orange"><i class="fas fa-minus"></i></div>
+    </div>
+    <div class="card-value" style="color:#a5750f;">{{ regular }}</div>
+    <div class="card-label">Regular</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-orange"><i class="fas fa-arrow-down"></i></div>
+    </div>
+    <div class="card-value" style="color:#b02a37;">{{ pobre }}</div>
+    <div class="card-label">Pobre</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-orange"><i class="fas fa-exclamation-circle"></i></div>
+    </div>
+    <div class="card-value" style="color:#b02a37;">{{ muy_pobre }}</div>
+    <div class="card-label">Muy Pobre</div>
+  </div>
+</div>
+
+{% set porcentaje = ((pendientes / total_pacientes) * 100) | round | int if total_pacientes else 0 %}
+<a class="pendientes-aviso-v2" href="/test_chair_stand_pendientes">
+  <div class="pendientes-icono"><i class="fas fa-clock"></i></div>
+  <div class="pendientes-info">
+    <div class="pendientes-titulo">{{ pendientes }} de {{ total_pacientes }} pacientes pendientes</div>
+    <div class="pendientes-sub">Haz clic para ver la lista</div>
+    <div class="pendientes-barra-v2">
+      <div class="pendientes-barra-fill" style="width: {{ porcentaje }}%"></div>
+    </div>
+  </div>
+  <div class="pendientes-porcentaje">{{ porcentaje }}%</div>
+</a>
+
+<form class="buscador-sivam" method="get" action="/test_chair_stand">
+  <label for="q" class="buscador-etiqueta">Pruebas Chair Stand</label>
+  <div class="buscador-fila">
+    <input
+      type="text"
+      id="q"
+      name="q"
+      value="{{ query }}"
+      placeholder="Buscar paciente..."
+      autocomplete="off">
+    <button type="submit">Buscar</button>
+  </div>
+</form>
+
+{% if resultados %}
+  <div class="tabla-container">
+    <table class="tabla-pacientes">
+      <thead>
+        <tr>
+          <th>Paciente</th>
+          <th>Edad</th>
+          <th>Sexo</th>
+          <th>Repeticiones</th>
+          <th>Percentil</th>
+          <th>Clasificación</th>
+          <th>Evaluador</th>
+          <th>Fecha</th>
+          <th class="col-acciones">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in resultados %}
+        <tr>
+          <td><strong>{{ r.nombres }} {{ r.apellidos }}</strong></td>
+          <td>{{ r.edad if r.edad else '-' }}</td>
+          <td>{{ r.sexo if r.sexo else '-' }}</td>
+          <td>{{ r.repeticiones if r.repeticiones is not none else '-' }}</td>
+          <td>{{ r.percentil if r.percentil is not none else '-' }}</td>
+          <td>
+            {% if r.resultado %}
+              {% set clase = 'badge-rojo' if r.resultado in ['Muy Pobre','Pobre','Deficiente'] else 'badge-amarillo' if r.resultado in ['Regular','Promedio'] else 'badge-verde' %}
+              <span class="badge-clasif {{ clase }}">{{ r.resultado }}</span>
+            {% else %}-{% endif %}
+          </td>
+          <td>{{ r.evaluador if r.evaluador else '-' }}</td>
+          <td>{{ r.fecha_examen if r.fecha_examen else '-' }}</td>
+          <td class="col-acciones">
+            <button type="button" class="accion-btn accion-ver" title="Ver ficha"
+                    onclick="verPaciente({{ r.id }})"><i class="fas fa-eye"></i></button>
+            {% if r.resultado %}
+            <a class="accion-btn accion-editar" title="Editar prueba"
+               href="/registrar_modulo/test_chair_stand/{{ r.id }}"><i class="fas fa-pen"></i></a>
+            {% else %}
+            <a class="accion-btn accion-registrar-mini" title="Registrar prueba"
+               href="/registrar_modulo/test_chair_stand/{{ r.id }}"><i class="fas fa-plus"></i></a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if total_paginas > 1 %}
+  <div class="paginacion-sivam">
+    {% if pagina > 1 %}
+      <a href="{{ url_for('test_chair_stand', pagina=pagina - 1, q=query or none) }}" class="pag-btn">&laquo; Anterior</a>
+    {% else %}
+      <span class="pag-btn pag-disabled">&laquo; Anterior</span>
+    {% endif %}
+    <span class="pag-info">Página {{ pagina }} de {{ total_paginas }}</span>
+    {% if pagina < total_paginas %}
+      <a href="{{ url_for('test_chair_stand', pagina=pagina + 1, q=query or none) }}" class="pag-btn">Siguiente &raquo;</a>
+    {% else %}
+      <span class="pag-btn pag-disabled">Siguiente &raquo;</span>
+    {% endif %}
+  </div>
+  {% endif %}
+{% else %}
+  <div class="vacio-sivam">
+    <p>No hay pruebas Chair Stand registradas.</p>
+  </div>
+{% endif %}
+
+<!-- Modal de ficha -->
+<div class="modal-overlay" id="modal-ficha" onclick="if(event.target.id==='modal-ficha')cerrarModal()">
+  <div class="modal-caja">
+    <div class="modal-header">
+      <h3>Ficha del paciente</h3>
+      <button type="button" class="modal-cerrar" onclick="cerrarModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body"><div class="modal-cargando">Cargando...</div></div>
+  </div>
+</div>
+
+<script>
+  function verPaciente(id) {
+    const modal = document.getElementById('modal-ficha');
+    const body = document.getElementById('modal-body');
+    body.innerHTML = '<div class="modal-cargando">Cargando...</div>';
+    modal.classList.add('abierto');
+    fetch('/paciente_ficha/' + id)
+      .then(function (r) { return r.text(); })
+      .then(function (html) { body.innerHTML = html; })
+      .catch(function () { body.innerHTML = '<p>No se pudo cargar.</p>'; });
+  }
+  function cerrarModal() { document.getElementById('modal-ficha').classList.remove('abierto'); }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') cerrarModal(); });
+</script>
+{% endblock %}

@@ -1,0 +1,243 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}Antropometría · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <span>Antropometría</span>
+  </div>
+  <div class="page-header-actions">
+    <h1 class="page-title">Antropometría</h1>
+    <a href="/seleccionar_paciente?modulo=antropometria_formulario" class="btn-sivam btn-sivam-primary">
+      <i class="fas fa-plus"></i> Nueva medición
+    </a>
+  </div>
+  <p class="page-subtitle">Mediciones antropométricas de pacientes</p>
+</div>
+
+<div class="dashboard-grid dashboard-grid-small">
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-green">
+        <i class="fas fa-ruler-vertical"></i>
+      </div>
+    </div>
+    <div class="card-value">{{ total_mediciones }}</div>
+    <div class="card-label">Total Mediciones</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-green">
+        <i class="fas fa-check-circle"></i>
+      </div>
+    </div>
+    <div class="card-value" style="color: var(--riesgo-bajo);">{{ total_mediciones }}</div>
+    <div class="card-label">Completas</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-orange">
+        <i class="fas fa-exclamation-triangle"></i>
+      </div>
+    </div>
+    <div class="card-value" style="color: var(--riesgo-alto);">{{ pendientes }}</div>
+    <div class="card-label">Faltan datos</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-green">
+        <i class="fas fa-weight"></i>
+      </div>
+    </div>
+    <div class="card-value">{{ peso_normal }}</div>
+    <div class="card-label">IMC Normal</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-orange">
+        <i class="fas fa-arrow-up"></i>
+      </div>
+    </div>
+    <div class="card-value">{{ sobrepeso }}</div>
+    <div class="card-label">Sobrepeso</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-orange">
+        <i class="fas fa-exclamation-circle"></i>
+      </div>
+    </div>
+    <div class="card-value">{{ obesidad }}</div>
+    <div class="card-label">Obesidad</div>
+  </div>
+</div>
+
+{% set porcentaje = ((pendientes / total_pacientes) * 100) | round | int if total_pacientes else 0 %}
+<a class="pendientes-aviso-v2" href="/antropometria_pendientes">
+  <div class="pendientes-icono"><i class="fas fa-clock"></i></div>
+  <div class="pendientes-info">
+    <div class="pendientes-titulo">{{ pendientes }} de {{ total_pacientes }} pacientes pendientes</div>
+    <div class="pendientes-sub">Haz clic para ver la lista</div>
+    <div class="pendientes-barra-v2">
+      <div class="pendientes-barra-fill" style="width: {{ porcentaje }}%"></div>
+    </div>
+  </div>
+  <div class="pendientes-porcentaje">{{ porcentaje }}%</div>
+</a>
+
+<form class="buscador-sivam" method="get" action="/antropometria">
+  <label for="q" class="buscador-etiqueta">Mediciones</label>
+  <div class="buscador-fila">
+    <input
+      type="text"
+      id="q"
+      name="q"
+      value="{{ query }}"
+      placeholder="Buscar paciente..."
+      autocomplete="off">
+    <button type="submit">Buscar</button>
+  </div>
+</form>
+
+{% if resultados %}
+  <div class="tabla-container">
+    <table class="tabla-pacientes">
+      <thead>
+        <tr>
+          <th>Paciente</th>
+          <th>Edad</th>
+          <th>Sexo</th>
+          <th>Talla</th>
+          <th>Peso</th>
+          <th>IMC</th>
+          <th>% Grasa</th>
+          <th>Cintura</th>
+          <th>Cadera</th>
+          <th>ICC</th>
+          <th>Resultado ICC</th>
+          <th>Riesgo CV</th>
+          <th>Fecha</th>
+          <th class="col-acciones">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in resultados %}
+        {% set tiene_medicion = r.imc or r.talla or r.peso or r.fecha_examen %}
+        <tr>
+          <td><strong>{{ r.nombres }} {{ r.apellidos }}</strong></td>
+          <td>{{ r.edad if r.edad else '-' }}</td>
+          <td>{{ r.sexo if r.sexo else '-' }}</td>
+          <td>{{ r.talla if r.talla else '-' }}</td>
+          <td>{{ r.peso if r.peso else '-' }}</td>
+          <td class="imc-valor imc-{{ 'normal' if r.imc and r.imc >= 18.5 and r.imc < 25 else 'bajo' if r.imc and r.imc < 18.5 else 'alto' if r.imc and r.imc >= 25 }}">
+            {{ r.imc if r.imc else '-' }}
+          </td>
+          <td>{{ r.porcentaje_grasa_corporal if r.porcentaje_grasa_corporal else '-' }}</td>
+          <td>{{ r.circunferencia_cintura if r.circunferencia_cintura else '-' }}</td>
+          <td>{{ r.circunferencia_cadera if r.circunferencia_cadera else '-' }}</td>
+          <td>{{ r.icc if r.icc else '-' }}</td>
+          <td class="col-riesgo">
+            {% if r.icc_resultado %}
+              <span class="badge-riesgo {{ 'badge-riesgo-alto' if r.icc_resultado == 'Alto' else 'badge-riesgo-bajo' }}">
+                <i class="fas {{ 'fa-triangle-exclamation' if r.icc_resultado == 'Alto' else 'fa-shield-heart' }}"></i>
+                {{ r.icc_resultado }}
+              </span>
+            {% else %}
+              <span class="badge-riesgo-vacio">—</span>
+            {% endif %}
+          </td>
+          <td class="col-riesgo">
+            {% if r.riesgo_cardiovascular %}
+              {% set _es_sin = 'sin' in r.riesgo_cardiovascular.lower() %}
+              <span class="badge-riesgo {{ 'badge-riesgo-bajo' if _es_sin else 'badge-riesgo-alto' }}">
+                <i class="fas {{ 'fa-shield-heart' if _es_sin else 'fa-triangle-exclamation' }}"></i>
+                {{ r.riesgo_cardiovascular }}
+              </span>
+            {% else %}
+              <span class="badge-riesgo-vacio">—</span>
+            {% endif %}
+          </td>
+          <td>{{ r.fecha_examen if r.fecha_examen else '-' }}</td>
+          <td class="col-acciones">
+            <button type="button" class="accion-btn accion-ver" title="Ver ficha"
+                    onclick="verPaciente({{ r.id }})"><i class="fas fa-eye"></i></button>
+            <a class="accion-btn accion-editar"
+               title="{{ 'Editar medición' if tiene_medicion else 'Registrar medición' }}"
+               href="/registrar_modulo/antropometria/{{ r.id }}">
+              <i class="fas {{ 'fa-pen' if tiene_medicion else 'fa-plus' }}"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if total_paginas > 1 %}
+  <div class="paginacion-sivam">
+    {% if pagina > 1 %}
+      <a href="{{ url_for('antropometria', pagina=pagina - 1, q=query or none) }}" class="pag-btn">&laquo; Anterior</a>
+    {% else %}
+      <span class="pag-btn pag-disabled">&laquo; Anterior</span>
+    {% endif %}
+
+    <span class="pag-info">Página {{ pagina }} de {{ total_paginas }}</span>
+
+    {% if pagina < total_paginas %}
+      <a href="{{ url_for('antropometria', pagina=pagina + 1, q=query or none) }}" class="pag-btn">Siguiente &raquo;</a>
+    {% else %}
+      <span class="pag-btn pag-disabled">Siguiente &raquo;</span>
+    {% endif %}
+  </div>
+  {% endif %}
+{% else %}
+  <div class="vacio-sivam">
+    <p>No hay mediciones antropométricas registradas.</p>
+  </div>
+{% endif %}
+
+<!-- Modal de ficha del paciente (ventana emergente) -->
+<div class="modal-overlay" id="modal-ficha" onclick="cerrarModalSiFondo(event)">
+  <div class="modal-caja">
+    <div class="modal-header">
+      <h3 id="modal-titulo">Ficha del paciente</h3>
+      <button type="button" class="modal-cerrar" onclick="cerrarModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body">
+      <div class="modal-cargando">Cargando...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function verPaciente(id) {
+    const modal = document.getElementById('modal-ficha');
+    const body = document.getElementById('modal-body');
+    body.innerHTML = '<div class="modal-cargando">Cargando...</div>';
+    modal.classList.add('abierto');
+
+    fetch('/paciente_ficha/' + id)
+      .then(function (resp) { return resp.text(); })
+      .then(function (html) { body.innerHTML = html; })
+      .catch(function () { body.innerHTML = '<p>No se pudo cargar la ficha.</p>'; });
+  }
+
+  function cerrarModal() {
+    document.getElementById('modal-ficha').classList.remove('abierto');
+  }
+  function cerrarModalSiFondo(e) {
+    if (e.target.id === 'modal-ficha') cerrarModal();
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { cerrarModal(); }
+  });
+</script>
+{% endblock %}

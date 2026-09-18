@@ -1,0 +1,204 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}Test Chair Stand · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <a href="/test_chair_stand">Chair Stand</a>
+    <span>Nueva Prueba</span>
+  </div>
+  <h1 class="page-title">Nueva Prueba Chair Stand</h1>
+  <p class="page-subtitle">Paciente: {{ paciente.nombres }} {{ paciente.apellidos }} | Edad: {{ paciente.edad or '-' }} años</p>
+</div>
+
+<a class="volver-sivam" href="{{ volver_url or ('/?id=' ~ paciente.id) }}">&larr; Volver</a>
+
+{% if existe %}
+  <div class="info-mensaje">
+    <i class="fas fa-info-circle"></i>
+    Este paciente ya tiene test Chair Stand. Estás editando el registro existente.
+  </div>
+{% endif %}
+
+<!-- Panel de resultado en tiempo real (oculto hasta escribir repeticiones) -->
+<div class="tinetti-resultado" id="panel-resultado" style="display:none;">
+  <div class="tinetti-resultado-titulo">Resultado en tiempo real</div>
+  <div class="tinetti-resultado-grid">
+    <div class="tinetti-res-item">
+      <span class="tinetti-res-label">Repeticiones</span>
+      <span class="tinetti-res-valor" id="rt-reps">0</span>
+    </div>
+    <div class="tinetti-res-item">
+      <span class="tinetti-res-label">Percentil</span>
+      <span class="tinetti-res-valor" id="rt-percentil">-</span>
+    </div>
+    <div class="tinetti-res-item">
+      <span class="tinetti-res-label">Clasificación</span>
+      <span class="tinetti-res-clasif" id="rt-clasif">-</span>
+    </div>
+  </div>
+</div>
+
+<form method="post" class="hc-form" id="form-chair">
+  <section class="form-seccion">
+    <h3 class="form-seccion-titulo"><i class="fas fa-chair"></i> Datos de la Prueba Chair Stand</h3>
+
+    <div class="info-mensaje">
+      <strong>Procedimiento:</strong> Pida al paciente que se siente en la mitad de la silla, con brazos cruzados
+      sobre el pecho. Durante 30 segundos, se sienta y se levanta de la silla (levantarse y sentarse = 1 repetición).
+      Registre el número de repeticiones.
+    </div>
+
+    {# Cronómetro #}
+    <div class="cronometro-caja">
+      <div class="cronometro-titulo">Cronómetro de 30 segundos</div>
+      <div class="cronometro-display" id="crono-display">0:30</div>
+      <div class="cronometro-botones">
+        <button type="button" class="btn-sivam btn-sivam-primary" id="crono-iniciar"><i class="fas fa-play"></i> Iniciar</button>
+        <button type="button" class="boton-secundario" id="crono-reset">Reiniciar</button>
+      </div>
+    </div>
+
+    <div class="form-grid">
+      <div class="campo-sivam">
+        <label for="repeticiones">Repeticiones en 30 segundos *</label>
+        <input type="number" min="0" id="repeticiones" name="repeticiones"
+               value="{{ valores.get('repeticiones') if valores.get('repeticiones') is not none else '' }}"
+               placeholder="Ej: 15" required>
+      </div>
+      <div class="campo-sivam">
+        <label for="evaluador">Evaluador</label>
+        <input type="text" id="evaluador" name="evaluador" placeholder="Nombre del evaluador"
+               value="{{ valores.get('evaluador') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="fecha_examen">Fecha del examen</label>
+        <input type="date" id="fecha_examen" name="fecha_examen" value="{{ valores.get('fecha_examen') or '' }}">
+      </div>
+      <div class="campo-sivam campo-ancho">
+        <label for="observaciones">Observaciones</label>
+        <textarea id="observaciones" name="observaciones" rows="2" placeholder="Observaciones adicionales...">{{ valores.get('observaciones') or '' }}</textarea>
+      </div>
+    </div>
+  </section>
+
+  <div class="form-acciones">
+    <a class="boton-secundario" href="/test_chair_stand">Cancelar</a>
+    <button type="submit" class="boton-guardar-sivam">{{ 'Actualizar' if existe else 'Guardar' }} Prueba</button>
+  </div>
+</form>
+
+<script>
+  (function () {
+    // ---- Clasificación en tiempo real ----
+    // Debe reflejar EXACTAMENTE la lógica de graficas.clasificar_chair_stand
+    // (Senior Fitness Test): cruza repeticiones con el rango normal por edad y sexo.
+    const reps = document.getElementById('repeticiones');
+    const panel = document.getElementById('panel-resultado');
+
+    const EDAD_PACIENTE = parseInt('{{ paciente.edad or "" }}', 10);
+    const SEXO_PACIENTE = '{{ (paciente.sexo or "")|lower }}';
+
+    const CHAIR_STAND_TABLA = {
+      hombre: [
+        [0, 64, 14, 19], [65, 69, 12, 18], [70, 74, 12, 17], [75, 79, 11, 17],
+        [80, 84, 10, 15], [85, 89, 8, 14], [90, 200, 7, 12],
+      ],
+      mujer: [
+        [0, 64, 12, 17], [65, 69, 11, 16], [70, 74, 10, 15], [75, 79, 10, 15],
+        [80, 84, 9, 14], [85, 89, 8, 13], [90, 200, 4, 11],
+      ],
+    };
+
+    function rangoPaciente() {
+      if (isNaN(EDAD_PACIENTE)) return null;
+      const s = SEXO_PACIENTE;
+      let tabla;
+      if (s.startsWith('h') || (s.startsWith('m') && !s.startsWith('mu'))) {
+        tabla = CHAIR_STAND_TABLA.hombre;
+      } else {
+        tabla = CHAIR_STAND_TABLA.mujer;
+      }
+      for (const [emin, emax, nb, na] of tabla) {
+        if (emin <= EDAD_PACIENTE && EDAD_PACIENTE <= emax) return [nb, na];
+      }
+      const ult = tabla[tabla.length - 1];
+      return [ult[2], ult[3]];
+    }
+
+    function clasificar(n) {
+      const rango = rangoPaciente();
+      if (rango === null) {
+        // Escala genérica de respaldo (sin edad), igual que el backend.
+        if (n <= 10) return { r: 'MUY POBRE', p: 10, c: 'clasif-alto' };
+        if (n === 11) return { r: 'POBRE', p: 25, c: 'clasif-alto' };
+        if (n === 12) return { r: 'REGULAR', p: 50, c: 'clasif-moderado' };
+        if (n === 13) return { r: 'PROMEDIO', p: 60, c: 'clasif-moderado' };
+        if (n <= 15) return { r: 'ALTO', p: 85, c: 'clasif-bajo' };
+        return { r: 'SUPERIOR', p: 95, c: 'clasif-bajo' };
+      }
+      const [normalBajo, normalAlto] = rango;
+      const ancho = Math.max(1, normalAlto - normalBajo);
+      const medio = (normalBajo + normalAlto) / 2;
+
+      if (n < normalBajo - ancho) return { r: 'MUY POBRE', p: 5, c: 'clasif-alto' };
+      if (n < normalBajo) return { r: 'POBRE', p: 20, c: 'clasif-alto' };
+      if (n < medio) return { r: 'REGULAR', p: 40, c: 'clasif-moderado' };
+      if (n <= normalAlto) return { r: 'PROMEDIO', p: 55, c: 'clasif-moderado' };
+      if (n <= normalAlto + ancho) return { r: 'ALTO', p: 80, c: 'clasif-bajo' };
+      return { r: 'SUPERIOR', p: 95, c: 'clasif-bajo' };
+    }
+
+    function actualizar() {
+      const v = parseInt(reps.value, 10);
+      if (isNaN(v) || reps.value === '') {
+        panel.style.display = 'none';
+        return;
+      }
+      const res = clasificar(v);
+      panel.style.display = 'block';
+      document.getElementById('rt-reps').textContent = v;
+      document.getElementById('rt-percentil').textContent = res.p;
+      const el = document.getElementById('rt-clasif');
+      el.textContent = res.r;
+      el.className = 'tinetti-res-clasif ' + res.c;
+    }
+
+    reps.addEventListener('input', actualizar);
+    actualizar();
+
+    // ---- Cronómetro de 30s ----
+    const display = document.getElementById('crono-display');
+    const btnIniciar = document.getElementById('crono-iniciar');
+    const btnReset = document.getElementById('crono-reset');
+    let segundos = 30, timer = null;
+
+    function pintar() {
+      display.textContent = '0:' + (segundos < 10 ? '0' + segundos : segundos);
+    }
+
+    btnIniciar.addEventListener('click', function () {
+      if (timer) return;
+      btnIniciar.innerHTML = '<i class="fas fa-hourglass-half"></i> Contando...';
+      timer = setInterval(function () {
+        segundos--;
+        pintar();
+        if (segundos <= 0) {
+          clearInterval(timer); timer = null;
+          display.classList.add('crono-fin');
+          btnIniciar.innerHTML = '<i class="fas fa-check"></i> ¡Tiempo!';
+        }
+      }, 1000);
+    });
+
+    btnReset.addEventListener('click', function () {
+      clearInterval(timer); timer = null;
+      segundos = 30; pintar();
+      display.classList.remove('crono-fin');
+      btnIniciar.innerHTML = '<i class="fas fa-play"></i> Iniciar';
+    });
+  })();
+</script>
+{% endblock %}

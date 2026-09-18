@@ -1,0 +1,214 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}Antropometría · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <a href="/antropometria">Antropometría</a>
+    <span>Nueva Medición</span>
+  </div>
+  <h1 class="page-title">Nueva Medición Antropométrica</h1>
+  <p class="page-subtitle">Paciente: {{ paciente.nombres }} {{ paciente.apellidos }} | Edad: {{ paciente.edad or '-' }} años</p>
+</div>
+
+<a class="volver-sivam" href="{{ volver_url or ('/?id=' ~ paciente.id) }}">&larr; Volver</a>
+
+{% if existe %}
+  <div class="info-mensaje">
+    <i class="fas fa-info-circle"></i>
+    Este paciente ya tiene datos de antropometría. Estás editando el registro existente.
+  </div>
+{% endif %}
+
+<form method="post" class="hc-form">
+
+  {# ===== Calculadora de IMC ===== #}
+  <section class="form-seccion">
+    <h3 class="form-seccion-titulo"><i class="fas fa-calculator"></i> Calculadora de IMC</h3>
+    <div class="form-grid form-grid-3">
+      <div class="campo-sivam">
+        <label for="peso">Peso (kg)</label>
+        <input type="number" step="0.1" id="peso" name="peso" value="{{ valores.get('peso') or '' }}" placeholder="Ej: 70">
+      </div>
+      <div class="campo-sivam">
+        <label for="talla">Talla (cm)</label>
+        <input type="number" step="0.1" id="talla" name="talla" value="{{ valores.get('talla') or '' }}" placeholder="Ej: 165">
+      </div>
+      <div class="campo-sivam">
+        <label for="imc">IMC Calculado</label>
+        <input type="number" step="0.1" id="imc" name="imc" value="{{ valores.get('imc') or '' }}" readonly placeholder="Ingrese peso y talla">
+        <span class="imc-etiqueta" id="imc-etiqueta"></span>
+      </div>
+    </div>
+  </section>
+
+  {# ===== Datos generales ===== #}
+  <section class="form-seccion">
+    <h3 class="form-seccion-titulo"><i class="fas fa-clipboard"></i> Datos Generales</h3>
+    <div class="form-grid">
+      <div class="campo-sivam">
+        <label for="fecha_examen">Fecha del examen</label>
+        <input type="date" id="fecha_examen" name="fecha_examen" value="{{ valores.get('fecha_examen') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="sexo">Sexo</label>
+        <select id="sexo" name="sexo">
+          <option value="">Selecciona...</option>
+          <option value="Mujer" {{ 'selected' if valores.get('sexo') == 'Mujer' }}>Mujer</option>
+          <option value="Hombre" {{ 'selected' if valores.get('sexo') == 'Hombre' }}>Hombre</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  {# ===== Composición Corporal ===== #}
+  <section class="form-seccion">
+    <h3 class="form-seccion-titulo"><i class="fas fa-weight"></i> Composición Corporal</h3>
+    <div class="form-grid form-grid-3">
+      <div class="campo-sivam">
+        <label for="porcentaje_grasa_corporal">% Grasa Corporal</label>
+        <input type="number" step="0.1" id="porcentaje_grasa_corporal" name="porcentaje_grasa_corporal" value="{{ valores.get('porcentaje_grasa_corporal') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="porcentaje_grasa_visceral">% Grasa Visceral</label>
+        <input type="number" step="0.1" id="porcentaje_grasa_visceral" name="porcentaje_grasa_visceral" value="{{ valores.get('porcentaje_grasa_visceral') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="musculo_esqueletico">Músculo Esquelético (kg)</label>
+        <input type="number" step="0.1" id="musculo_esqueletico" name="musculo_esqueletico" value="{{ valores.get('musculo_esqueletico') or '' }}">
+      </div>
+    </div>
+  </section>
+
+  {# ===== Circunferencias ===== #}
+  <section class="form-seccion">
+    <h3 class="form-seccion-titulo"><i class="fas fa-ruler-combined"></i> Circunferencias (cm)</h3>
+    <div class="form-grid form-grid-3">
+      <div class="campo-sivam">
+        <label for="circunferencia_cintura">Cintura</label>
+        <input type="number" step="0.1" id="circunferencia_cintura" name="circunferencia_cintura" value="{{ valores.get('circunferencia_cintura') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="circunferencia_cadera">Cadera</label>
+        <input type="number" step="0.1" id="circunferencia_cadera" name="circunferencia_cadera" value="{{ valores.get('circunferencia_cadera') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="circunferencia_cuadriceps">Cuádriceps</label>
+        <input type="number" step="0.1" id="circunferencia_cuadriceps" name="circunferencia_cuadriceps" value="{{ valores.get('circunferencia_cuadriceps') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="circunferencia_pantorrilla">Pantorrilla</label>
+        <input type="number" step="0.1" id="circunferencia_pantorrilla" name="circunferencia_pantorrilla" value="{{ valores.get('circunferencia_pantorrilla') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="circunferencia_brazo">Brazo</label>
+        <input type="number" step="0.1" id="circunferencia_brazo" name="circunferencia_brazo" value="{{ valores.get('circunferencia_brazo') or '' }}">
+      </div>
+    </div>
+  </section>
+
+  {# ===== Anchuras ===== #}
+  <section class="form-seccion">
+    <h3 class="form-seccion-titulo"><i class="fas fa-arrows-alt-h"></i> Anchuras (mm)</h3>
+    <div class="form-grid form-grid-3">
+      <div class="campo-sivam">
+        <label for="anchura_muneca">Muñeca</label>
+        <input type="number" step="0.1" id="anchura_muneca" name="anchura_muneca" value="{{ valores.get('anchura_muneca') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="anchura_brazo">Brazo</label>
+        <input type="number" step="0.1" id="anchura_brazo" name="anchura_brazo" value="{{ valores.get('anchura_brazo') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="anchura_rodilla">Rodilla</label>
+        <input type="number" step="0.1" id="anchura_rodilla" name="anchura_rodilla" value="{{ valores.get('anchura_rodilla') or '' }}">
+      </div>
+    </div>
+  </section>
+
+  {# ===== Fuerza ===== #}
+  <section class="form-seccion">
+    <h3 class="form-seccion-titulo"><i class="fas fa-hand-rock"></i> Fuerza (kg)</h3>
+    <div class="form-grid">
+      <div class="campo-sivam">
+        <label for="fuerza_lado_derecho">Lado Derecho</label>
+        <input type="number" step="0.1" id="fuerza_lado_derecho" name="fuerza_lado_derecho" value="{{ valores.get('fuerza_lado_derecho') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="fuerza_lado_izquierdo">Lado Izquierdo</label>
+        <input type="number" step="0.1" id="fuerza_lado_izquierdo" name="fuerza_lado_izquierdo" value="{{ valores.get('fuerza_lado_izquierdo') or '' }}">
+      </div>
+    </div>
+  </section>
+
+  {# ===== Clasificación ===== #}
+  <section class="form-seccion">
+    <h3 class="form-seccion-titulo"><i class="fas fa-heart"></i> Clasificación</h3>
+    <div class="form-grid">
+      <div class="campo-sivam">
+        <label for="riesgo_cardiovascular">Riesgo Cardiovascular</label>
+        <select id="riesgo_cardiovascular" name="riesgo_cardiovascular">
+          <option value="">Selecciona...</option>
+          <option value="Con riesgo" {{ 'selected' if valores.get('riesgo_cardiovascular') == 'Con riesgo' }}>Con riesgo</option>
+          <option value="Sin riesgo" {{ 'selected' if valores.get('riesgo_cardiovascular') == 'Sin riesgo' }}>Sin riesgo</option>
+        </select>
+      </div>
+      <div class="campo-sivam">
+        <label for="sarcopenia">Resultado Sarcopenia</label>
+        <select id="sarcopenia" name="sarcopenia">
+          <option value="">Selecciona...</option>
+          <option value="Sin sarcopenia" {{ 'selected' if valores.get('sarcopenia') == 'Sin sarcopenia' }}>Sin sarcopenia</option>
+          <option value="Sospecha de sarcopenia" {{ 'selected' if valores.get('sarcopenia') == 'Sospecha de sarcopenia' }}>Sospecha de sarcopenia</option>
+          <option value="Sarcopenia" {{ 'selected' if valores.get('sarcopenia') == 'Sarcopenia' }}>Sarcopenia</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <div class="form-acciones">
+    <a class="boton-secundario" href="/antropometria">Cancelar</a>
+    <button type="submit" class="boton-guardar-sivam">
+      {{ 'Actualizar' if existe else 'Guardar' }} Medición
+    </button>
+  </div>
+</form>
+
+<script>
+  // Auto-cálculo de IMC = peso / (talla_m)^2 + clasificación
+  (function () {
+    const peso = document.getElementById('peso');
+    const talla = document.getElementById('talla');
+    const imc = document.getElementById('imc');
+    const etiqueta = document.getElementById('imc-etiqueta');
+
+    function calcularIMC() {
+      const p = parseFloat(peso.value);
+      const t = parseFloat(talla.value);
+      if (p > 0 && t > 0) {
+        const tm = t / 100;
+        const valor = p / (tm * tm);
+        imc.value = valor.toFixed(1);
+
+        let txt, color;
+        if (valor < 18.5) { txt = 'Bajo peso'; color = '#f0a500'; }
+        else if (valor < 25) { txt = 'Normal'; color = '#2f7d4f'; }
+        else if (valor < 30) { txt = 'Sobrepeso'; color = '#f0a500'; }
+        else { txt = 'Obesidad'; color = '#e0553b'; }
+        etiqueta.textContent = txt;
+        etiqueta.style.color = color;
+      } else {
+        imc.value = '';
+        etiqueta.textContent = '';
+      }
+    }
+
+    if (peso && talla && imc) {
+      peso.addEventListener('input', calcularIMC);
+      talla.addEventListener('input', calcularIMC);
+      calcularIMC(); // al cargar (por si ya hay datos)
+    }
+  })();
+</script>
+{% endblock %}

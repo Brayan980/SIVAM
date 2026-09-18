@@ -1,0 +1,20 @@
+# Configuración de despliegue para Render.
+# Base de datos: Supabase (Postgres) vía la variable DATABASE_URL.
+services:
+  - type: web
+    name: vista-medico
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    envVars:
+      # Pega aquí (en el panel de Render, NO en el repo) la cadena de conexión
+      # de Supabase. sync: false hace que Render la pida y no la versione.
+      - key: DATABASE_URL
+        sync: false
+      # Clave para firmar las sesiones de Flask. Render puede generarla.
+      - key: SECRET_KEY
+        generateValue: true
+      # Desactiva el modo debug en producción.
+      - key: FLASK_DEBUG
+        value: "false"

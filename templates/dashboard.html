@@ -1,0 +1,178 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}Dashboard · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <span>Dashboard</span>
+  </div>
+  <h1 class="page-title">Dashboard</h1>
+  <p class="page-subtitle">Panel de control del sistema SIVAM</p>
+</div>
+
+<div class="dashboard-grid">
+  <a href="/" class="dashboard-card dashboard-card-link">
+    <div class="card-header">
+      <div class="card-icon card-icon-green">
+        <i class="fas fa-users"></i>
+      </div>
+    </div>
+    <div class="card-value">{{ total_pacientes }}</div>
+    <div class="card-label">Total Pacientes</div>
+  </a>
+
+  <a href="/" class="dashboard-card dashboard-card-link">
+    <div class="card-header">
+      <div class="card-icon card-icon-green">
+        <i class="fas fa-file-medical"></i>
+      </div>
+    </div>
+    <div class="card-value">{{ total_historias }}</div>
+    <div class="card-label">Historias Clínicas</div>
+  </a>
+
+  <a href="/seleccionar_paciente?modulo=antropometria" class="dashboard-card dashboard-card-link">
+    <div class="card-header">
+      <div class="card-icon card-icon-green">
+        <i class="fas fa-ruler-vertical"></i>
+      </div>
+    </div>
+    <div class="card-value">{{ total_antropometria }}</div>
+    <div class="card-label">Mediciones Antropométricas</div>
+  </a>
+
+  <a href="/seleccionar_paciente?modulo=vo2_max" class="dashboard-card dashboard-card-link">
+    <div class="card-header">
+      <div class="card-icon card-icon-green">
+        <i class="fas fa-heartbeat"></i>
+      </div>
+    </div>
+    <div class="card-value">{{ total_vo2 }}</div>
+    <div class="card-label">Pruebas VO2 Max</div>
+  </a>
+
+  <a href="/seleccionar_paciente?modulo=test_chair_stand" class="dashboard-card dashboard-card-link">
+    <div class="card-header">
+      <div class="card-icon card-icon-orange">
+        <i class="fas fa-chair"></i>
+      </div>
+    </div>
+    <div class="card-value">{{ total_chair_stand }}</div>
+    <div class="card-label">Test Chair Stand</div>
+  </a>
+
+  <a href="/seleccionar_paciente?modulo=test_tinetti" class="dashboard-card dashboard-card-link">
+    <div class="card-header">
+      <div class="card-icon card-icon-orange">
+        <i class="fas fa-walking"></i>
+      </div>
+    </div>
+    <div class="card-value">{{ total_tinetti }}</div>
+    <div class="card-label">Test Tinetti</div>
+  </a>
+
+  <a href="/seleccionar_paciente?modulo=test_moca" class="dashboard-card dashboard-card-link">
+    <div class="card-header">
+      <div class="card-icon card-icon-orange">
+        <i class="fas fa-brain"></i>
+      </div>
+    </div>
+    <div class="card-value">{{ total_moca }}</div>
+    <div class="card-label">Test MoCA</div>
+  </a>
+
+  <a href="/caracterizacion" class="dashboard-card dashboard-card-link">
+    <div class="card-header">
+      <div class="card-icon card-icon-green">
+        <i class="fas fa-house-user"></i>
+      </div>
+    </div>
+    <div class="card-value">{{ total_caracterizacion }}</div>
+    <div class="card-label">Caracterización</div>
+  </a>
+</div>
+
+<!-- Gráficas de clasificación -->
+<div class="graficas-grid">
+  {% set graficas = [
+    ('Chair Stand — Clasificación', 'fa-chair', graf_chair),
+    ('Tinetti — Clasificación', 'fa-walking', graf_tinetti),
+    ('MoCA — Clasificación', 'fa-brain', graf_moca),
+    ('Antropometría — IMC', 'fa-ruler-vertical', graf_imc),
+    ('VO2 Max — Clasificación', 'fa-heartbeat', graf_vo2),
+    ('Riesgo Cardiovascular', 'fa-heart', graf_riesgo_cv),
+    ('Caracterización — Estrato', 'fa-house-user', graf_caracterizacion)
+  ] %}
+
+  {% for titulo, icono, datos in graficas %}
+  <div class="grafica-card">
+    <div class="grafica-header">
+      <i class="fas {{ icono }}"></i>
+      <span>{{ titulo }}</span>
+    </div>
+    {% set total = datos | sum(attribute='valor') %}
+    {% if total > 0 %}
+    <div class="grafica-body">
+      <div class="grafica-leyenda">
+        {% for d in datos %}
+        <div class="leyenda-item">
+          <span class="leyenda-color" data-color-idx="{{ loop.index0 }}"></span>
+          <span class="leyenda-label">{{ d.label }}: <strong>{{ d.valor }}</strong>
+            ({{ ((d.valor / total) * 100) | round | int }}%)</span>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="grafica-canvas-wrap">
+        <canvas class="grafica-dona"
+                data-valores="{{ datos | map(attribute='valor') | list | tojson | forceescape }}"
+                data-labels="{{ datos | map(attribute='label') | list | tojson | forceescape }}"></canvas>
+        <div class="grafica-total">{{ total }}<span>Total</span></div>
+      </div>
+    </div>
+    {% else %}
+    <div class="grafica-vacia">Sin datos registrados</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  (function () {
+    const paleta = ['#2f7d4f', '#f0a500', '#e0553b', '#4a90d9', '#8e6fce', '#d94a7a', '#3fb0ac'];
+
+    // Colorear cuadros de leyenda
+    document.querySelectorAll('.leyenda-color').forEach(function (el) {
+      const idx = parseInt(el.dataset.colorIdx, 10) % paleta.length;
+      el.style.background = paleta[idx];
+    });
+
+    if (typeof Chart === 'undefined') return;
+
+    document.querySelectorAll('.grafica-dona').forEach(function (canvas) {
+      const valores = JSON.parse(canvas.dataset.valores);
+      const labels = JSON.parse(canvas.dataset.labels);
+      new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: valores,
+            backgroundColor: labels.map(function (_, i) { return paleta[i % paleta.length]; }),
+            borderWidth: 2,
+            borderColor: '#fff',
+          }]
+        },
+        options: {
+          cutout: '65%',
+          plugins: { legend: { display: false } },
+          responsive: true,
+          maintainAspectRatio: true,
+        }
+      });
+    });
+  })();
+</script>
+{% endblock %}

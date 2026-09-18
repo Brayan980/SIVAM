@@ -1,0 +1,227 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}VO2 Max · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <span>VO2 Max</span>
+  </div>
+  <div class="page-header-actions">
+    <h1 class="page-title">VO2 Max</h1>
+    <a href="/seleccionar_paciente?modulo=vo2_max_formulario" class="btn-sivam btn-sivam-primary">
+      <i class="fas fa-plus"></i> Nueva prueba
+    </a>
+  </div>
+  <p class="page-subtitle">Pruebas de consumo máximo de oxígeno</p>
+</div>
+
+<div class="dashboard-grid dashboard-grid-small">
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-green">
+        <i class="fas fa-heartbeat"></i>
+      </div>
+    </div>
+    <div class="card-value">{{ total_tests }}</div>
+    <div class="card-label">Total Pruebas</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-green">
+        <i class="fas fa-check-circle"></i>
+      </div>
+    </div>
+    <div class="card-value" style="color: var(--riesgo-bajo);">{{ total_tests }}</div>
+    <div class="card-label">Completas</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-orange">
+        <i class="fas fa-exclamation-triangle"></i>
+      </div>
+    </div>
+    <div class="card-value" style="color: var(--riesgo-alto);">{{ pendientes }}</div>
+    <div class="card-label">Faltan datos</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-green"><i class="fas fa-trophy"></i></div>
+    </div>
+    <div class="card-value" style="color:#1f7a44;">{{ superior }}</div>
+    <div class="card-label">Superior</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-green"><i class="fas fa-star"></i></div>
+    </div>
+    <div class="card-value" style="color:#1f7a44;">{{ excelente }}</div>
+    <div class="card-label">Excelente</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-green"><i class="fas fa-thumbs-up"></i></div>
+    </div>
+    <div class="card-value" style="color:#1f7a44;">{{ bueno }}</div>
+    <div class="card-label">Bueno</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-orange"><i class="fas fa-minus"></i></div>
+    </div>
+    <div class="card-value" style="color:#a5750f;">{{ regular }}</div>
+    <div class="card-label">Regular</div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">
+      <div class="card-icon card-icon-orange"><i class="fas fa-arrow-down"></i></div>
+    </div>
+    <div class="card-value" style="color:#b02a37;">{{ bajo }}</div>
+    <div class="card-label">Bajo</div>
+  </div>
+</div>
+
+{% set porcentaje = ((pendientes / total_pacientes) * 100) | round | int if total_pacientes else 0 %}
+<a class="pendientes-aviso-v2" href="/vo2_max_pendientes">
+  <div class="pendientes-icono"><i class="fas fa-clock"></i></div>
+  <div class="pendientes-info">
+    <div class="pendientes-titulo">{{ pendientes }} de {{ total_pacientes }} pacientes pendientes</div>
+    <div class="pendientes-sub">Haz clic para ver la lista</div>
+    <div class="pendientes-barra-v2">
+      <div class="pendientes-barra-fill" style="width: {{ porcentaje }}%"></div>
+    </div>
+  </div>
+  <div class="pendientes-porcentaje">{{ porcentaje }}%</div>
+</a>
+
+<form class="buscador-sivam" method="get" action="/vo2_max">
+  <label for="q" class="buscador-etiqueta">Pruebas VO2 Max</label>
+  <div class="buscador-fila">
+    <input
+      type="text"
+      id="q"
+      name="q"
+      value="{{ query }}"
+      placeholder="Buscar paciente..."
+      autocomplete="off">
+    <button type="submit">Buscar</button>
+  </div>
+</form>
+
+{% if resultados %}
+  <div class="tabla-container">
+    <table class="tabla-pacientes">
+      <thead>
+        <tr>
+          <th>Paciente</th>
+          <th>Edad</th>
+          <th>TA</th>
+          <th>FC</th>
+          <th>FC Max</th>
+          <th>SpO2</th>
+          <th>VO2 Max</th>
+          <th>Resultado</th>
+          <th class="col-acciones">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in resultados %}
+        <tr>
+          <td><strong>{{ r.nombres }} {{ r.apellidos }}</strong></td>
+          <td>{{ r.edad if r.edad else '-' }}</td>
+          <td>{{ r.ta if r.ta else '-' }}</td>
+          <td>{{ r.fc if r.fc else '-' }}</td>
+          <td>{{ r.fc_max if r.fc_max else '-' }}</td>
+          <td>{{ r.spo2 if r.spo2 else '-' }}</td>
+          <td>{{ r.vo2_max if r.vo2_max else '-' }}</td>
+          <td>
+            {% if r.resultado %}
+              {% set res = r.resultado|upper %}
+              {% set clase = 'badge-verde' if res in ['SUPERIOR','EXCELENTE'] else 'badge-amarillo' if res in ['BUENO','REGULAR'] else 'badge-rojo' %}
+              <span class="badge-clasif {{ clase }}">{{ r.resultado }}</span>
+            {% else %}-{% endif %}
+          </td>
+          <td class="col-acciones">
+            <button type="button" class="accion-btn accion-ver" title="Ver ficha"
+                    onclick="verPaciente({{ r.id }})"><i class="fas fa-eye"></i></button>
+            {% if r.resultado %}
+            <a class="accion-btn accion-editar" title="Editar"
+               href="/registrar_modulo/vo2_max/{{ r.id }}"><i class="fas fa-pen"></i></a>
+            {% else %}
+            <a class="accion-btn accion-registrar-mini" title="Registrar"
+               href="/registrar_modulo/vo2_max/{{ r.id }}"><i class="fas fa-plus"></i></a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if total_paginas > 1 %}
+  <div class="paginacion-sivam">
+    {% if pagina > 1 %}
+      <a href="{{ url_for('vo2_max', pagina=pagina - 1, q=query or none) }}" class="pag-btn">&laquo; Anterior</a>
+    {% else %}
+      <span class="pag-btn pag-disabled">&laquo; Anterior</span>
+    {% endif %}
+    <span class="pag-info">Página {{ pagina }} de {{ total_paginas }}</span>
+    {% if pagina < total_paginas %}
+      <a href="{{ url_for('vo2_max', pagina=pagina + 1, q=query or none) }}" class="pag-btn">Siguiente &raquo;</a>
+    {% else %}
+      <span class="pag-btn pag-disabled">Siguiente &raquo;</span>
+    {% endif %}
+  </div>
+  {% endif %}
+{% else %}
+  <div class="vacio-sivam">
+    <p>No hay pruebas VO2 Max registradas.</p>
+  </div>
+{% endif %}
+
+<!-- Modal de ficha del paciente (ventana emergente) -->
+<div class="modal-overlay" id="modal-ficha" onclick="cerrarModalSiFondo(event)">
+  <div class="modal-caja">
+    <div class="modal-header">
+      <h3 id="modal-titulo">Ficha del paciente</h3>
+      <button type="button" class="modal-cerrar" onclick="cerrarModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body">
+      <div class="modal-cargando">Cargando...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function verPaciente(id) {
+    const modal = document.getElementById('modal-ficha');
+    const body = document.getElementById('modal-body');
+    body.innerHTML = '<div class="modal-cargando">Cargando...</div>';
+    modal.classList.add('abierto');
+
+    fetch('/paciente_ficha/' + id)
+      .then(function (resp) { return resp.text(); })
+      .then(function (html) { body.innerHTML = html; })
+      .catch(function () { body.innerHTML = '<p>No se pudo cargar la ficha.</p>'; });
+  }
+
+  function cerrarModal() {
+    document.getElementById('modal-ficha').classList.remove('abierto');
+  }
+  function cerrarModalSiFondo(e) {
+    if (e.target.id === 'modal-ficha') cerrarModal();
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { cerrarModal(); }
+  });
+</script>
+{% endblock %}

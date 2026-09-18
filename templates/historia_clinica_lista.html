@@ -1,0 +1,129 @@
+{% extends "base_sivam.html" %}
+
+{% block title %}Historia Clínica · SIVAM - CECAR{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="/dashboard"><i class="fas fa-home"></i></a>
+    <span>Historia Clínica</span>
+  </div>
+  <div class="page-header-actions">
+    <h1 class="page-title">Historia Clínica</h1>
+    <div class="header-botones">
+      <a class="boton-exportar" href="/exportar_datos" title="Exportar todos los datos a Excel">
+        <i class="fas fa-file-excel"></i> Exportar datos
+      </a>
+      <a class="boton-nuevo-sivam" href="/nuevo">+ Nueva Historia Clínica</a>
+    </div>
+  </div>
+  <p class="page-subtitle">Gestión de historias clínicas de pacientes</p>
+</div>
+
+<form class="buscador-sivam" method="get" action="/historia_clinica">
+  <label for="q" class="buscador-etiqueta">Filtrar historias</label>
+  <div class="buscador-fila">
+    <input type="text" id="q" name="q" value="{{ query }}"
+           placeholder="Filtrar por paciente, patología..." autocomplete="off">
+    <button type="submit">Buscar</button>
+  </div>
+</form>
+
+{% if resultados %}
+<section class="tabla-panel-sivam">
+  <h2 class="tabla-panel-titulo"><i class="fas fa-file-medical"></i> Historias Clínicas Registradas ({{ total_registros }})</h2>
+  <div class="tabla-container">
+    <table class="tabla-pacientes">
+      <thead>
+        <tr>
+          <th>Paciente</th>
+          <th>Edad</th>
+          <th>Patología</th>
+          <th>Actividad</th>
+          <th>Riesgo CV</th>
+          <th class="col-acciones">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in resultados %}
+        <tr>
+          <td><strong>{{ r.nombres }} {{ r.apellidos }}</strong></td>
+          <td>{{ (r.edad|int ~ ' años') if r.edad else '-' }}</td>
+          <td>{{ r.patologia_actual if r.patologia_actual else '-' }}</td>
+          <td>{{ r.ejercicio_y_actividad_fisica_leve_moderado_intenso if r.ejercicio_y_actividad_fisica_leve_moderado_intenso else '-' }}</td>
+          <td class="col-riesgo">
+            {% if r.riesgo_cardiovascular_con_riesgo_o_sin_riesgo %}
+              {% set _es_sin = 'sin' in r.riesgo_cardiovascular_con_riesgo_o_sin_riesgo|lower %}
+              <span class="badge-riesgo {{ 'badge-riesgo-bajo' if _es_sin else 'badge-riesgo-alto' }}">
+                <i class="fas {{ 'fa-shield-heart' if _es_sin else 'fa-triangle-exclamation' }}"></i>
+                {{ r.riesgo_cardiovascular_con_riesgo_o_sin_riesgo }}
+              </span>
+            {% else %}
+              <span class="badge-riesgo-vacio">—</span>
+            {% endif %}
+          </td>
+          <td class="col-acciones">
+            <button type="button" class="accion-btn accion-ver" title="Ver ficha"
+                    onclick="verPaciente({{ r.id }})"><i class="fas fa-eye"></i></button>
+            <a class="accion-btn accion-editar" title="Editar"
+               href="/editar/{{ r.id }}"><i class="fas fa-pen"></i></a>
+            <a class="accion-btn accion-exportar" title="Exportar este paciente a Excel"
+               href="/exportar_paciente/{{ r.id }}"><i class="fas fa-file-excel"></i></a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if total_paginas > 1 %}
+  <div class="paginacion-sivam">
+    {% if pagina > 1 %}
+      <a href="{{ url_for('historia_clinica', pagina=pagina - 1, q=query or none) }}" class="pag-btn">&laquo; Anterior</a>
+    {% else %}
+      <span class="pag-btn pag-disabled">&laquo; Anterior</span>
+    {% endif %}
+    <span class="pag-info">Página {{ pagina }} de {{ total_paginas }}</span>
+    {% if pagina < total_paginas %}
+      <a href="{{ url_for('historia_clinica', pagina=pagina + 1, q=query or none) }}" class="pag-btn">Siguiente &raquo;</a>
+    {% else %}
+      <span class="pag-btn pag-disabled">Siguiente &raquo;</span>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+{% else %}
+  <div class="vacio-sivam">
+    <p>No hay historias clínicas que coincidan.</p>
+  </div>
+{% endif %}
+
+<!-- Modal de ficha -->
+<div class="modal-overlay" id="modal-ficha" onclick="cerrarModalSiFondo(event)">
+  <div class="modal-caja">
+    <div class="modal-header">
+      <h3>Ficha del paciente</h3>
+      <button type="button" class="modal-cerrar" onclick="cerrarModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body">
+      <div class="modal-cargando">Cargando...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function verPaciente(id) {
+    const modal = document.getElementById('modal-ficha');
+    const body = document.getElementById('modal-body');
+    body.innerHTML = '<div class="modal-cargando">Cargando...</div>';
+    modal.classList.add('abierto');
+    fetch('/historia_ficha/' + id)
+      .then(function (r) { return r.text(); })
+      .then(function (html) { body.innerHTML = html; })
+      .catch(function () { body.innerHTML = '<p>No se pudo cargar la ficha.</p>'; });
+  }
+  function cerrarModal() { document.getElementById('modal-ficha').classList.remove('abierto'); }
+  function cerrarModalSiFondo(e) { if (e.target.id === 'modal-ficha') cerrarModal(); }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') cerrarModal(); });
+</script>
+{% endblock %}

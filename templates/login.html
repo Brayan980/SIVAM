@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Iniciar sesión · SIVAM - CECAR</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23e67e22' d='M228.3 469.1 47.6 300.4c-4.2-3.9-8.2-8.1-11.9-12.4h96.8l35.9 68.1c1.9 3.7 5.9 5.9 10.1 5.7s7.8-2.9 9.4-6.7l58.3-141.9 34.1 84c1.6 4 5.5 6.6 9.7 6.7l112-.1h13.9c-3.7 4.3-7.7 8.5-11.9 12.4L283.7 469.1c-15.3 14.2-39.1 14.2-54.4 0zM473.7 73.5C505 105.4 512 154.3 490 192.5H358.7l-45.4-112c-1.6-3.9-5.4-6.4-9.6-6.5s-8.1 2.4-9.7 6.3L232.1 224.4l-33.9-64.3c-1.8-3.4-5.4-5.6-9.3-5.7s-7.6 1.8-9.6 5.1l-40.6 68.9H21.5c-22-38.3-15-87.1 16.4-119C74.9 34.8 132.4 33.9 170 66.8l4 3.5 21.6 18.9 21.6-18.9 4-3.5c37.6-32.9 95.1-32 131.9 3.5l.4.4z'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="login-body">
+
+  <div class="login-wrapper">
+    <div class="login-card-v2">
+      <!-- Panel izquierdo decorativo -->
+      <div class="login-lado">
+        <div class="login-lado-contenido">
+          <div class="login-lado-icono"><i class="fas fa-heart-pulse"></i></div>
+          <h2>SIVAM</h2>
+          <p>Sistema de Valoración del Adulto Mayor</p>
+          <div class="login-lado-marca">CECAR · DELFIN</div>
+        </div>
+        <div class="login-lado-deco"></div>
+      </div>
+
+      <!-- Panel derecho: formulario -->
+      <div class="login-form-lado">
+        <div class="login-form-header">
+          <h1>Bienvenido</h1>
+          <p>Ingresa tus credenciales para continuar</p>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <div class="login-errores">
+              {% for message in messages %}
+                <p><i class="fas fa-circle-exclamation"></i> {{ message }}</p>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <form method="post" class="login-form" action="/login">
+          <div class="login-campo">
+            <label for="usuario">Usuario</label>
+            <div class="login-input-icono">
+              <i class="fas fa-user"></i>
+              <input type="text" id="usuario" name="usuario" placeholder="Ingrese su usuario" required autofocus>
+            </div>
+          </div>
+
+          <div class="login-campo">
+            <label for="contraseña">Contraseña</label>
+            <div class="login-input-icono">
+              <i class="fas fa-lock"></i>
+              <input type="password" id="contraseña" name="contraseña" placeholder="Ingrese su contraseña" required>
+              <button type="button" class="toggle-password" onclick="togglePassword('contraseña', this)"
+                      title="Mostrar/ocultar contraseña" aria-label="Mostrar u ocultar contraseña">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="login-boton">
+            <i class="fas fa-right-to-bracket"></i> Ingresar
+          </button>
+        </form>
+
+        <p class="login-pie">© SIVAM · CECAR — Sistema de Valoración del Adulto Mayor</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function togglePassword(inputId, boton) {
+      const input = document.getElementById(inputId);
+      const icono = boton.querySelector('i');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icono.classList.remove('fa-eye');
+        icono.classList.add('fa-eye-slash');
+      } else {
+        input.type = 'password';
+        icono.classList.remove('fa-eye-slash');
+        icono.classList.add('fa-eye');
+      }
+    }
+  </script>
+
+</body>
+</html>
