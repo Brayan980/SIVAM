@@ -141,5 +141,53 @@
       }
     });
   </script>
+
+  <!-- Indicador de carga global -->
+  <div id="sivam-loader" class="sivam-loader" aria-hidden="true">
+    <div class="sivam-loader-caja">
+      <div class="sivam-loader-spinner"></div>
+      <p class="sivam-loader-texto">Cargando...</p>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const loader = document.getElementById('sivam-loader');
+      if (!loader) return;
+
+      function mostrarLoader() {
+        loader.classList.add('activo');
+      }
+      function ocultarLoader() {
+        loader.classList.remove('activo');
+      }
+
+      // Mostrar al navegar por enlaces internos (no anclas, no nueva pestaña,
+      // no descargas).
+      document.addEventListener('click', function (e) {
+        const enlace = e.target.closest('a');
+        if (!enlace) return;
+        const href = enlace.getAttribute('href');
+        if (!href || href.startsWith('#')) return;
+        if (enlace.target === '_blank') return;
+        if (enlace.hasAttribute('download')) return;
+        if (href.startsWith('javascript:')) return;
+        // Solo rutas internas del mismo sitio.
+        if (enlace.host && enlace.host !== window.location.host) return;
+        mostrarLoader();
+      });
+
+      // Mostrar al enviar formularios.
+      document.addEventListener('submit', function () {
+        mostrarLoader();
+      });
+
+      // Ocultar si el usuario vuelve con el botón "atrás" (bfcache).
+      window.addEventListener('pageshow', function (e) {
+        if (e.persisted) ocultarLoader();
+      });
+      window.addEventListener('beforeunload', ocultarLoader);
+    })();
+  </script>
 </body>
 </html>

@@ -25,6 +25,17 @@ login_manager.login_view = 'login'
 login_manager.login_message = 'Por favor inicia sesión para acceder a esta página.'
 
 
+@app.route('/health')
+def health():
+    """Endpoint ligero para monitoreo (UptimeRobot, cron-job, etc.).
+
+    No requiere login ni consulta la base de datos, así que responde de
+    inmediato. Sirve para hacer 'ping' periódico y evitar que Render
+    duerma el servicio (cold start) en el plan gratuito.
+    """
+    return 'ok', 200
+
+
 class User(UserMixin):
     def __init__(self, user_id, usuario, rol):
         self.id = user_id
