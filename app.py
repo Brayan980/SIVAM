@@ -25,6 +25,17 @@ login_manager.login_view = 'login'
 login_manager.login_message = 'Por favor inicia sesión para acceder a esta página.'
 
 
+@app.route('/health')
+def health():
+    """Endpoint ligero para monitoreo (UptimeRobot, cron-job, etc.).
+
+    No requiere login ni consulta la base de datos, así que responde de
+    inmediato. Sirve para hacer 'ping' periódico y evitar que Render
+    duerma el servicio (cold start) en el plan gratuito.
+    """
+    return 'ok', 200
+
+
 class User(UserMixin):
     def __init__(self, user_id, usuario, rol):
         self.id = user_id
@@ -121,6 +132,13 @@ def usuarios_lista():
     columnas = [desc[0] for desc in cursor.description]
     conexion.close()
     usuarios = [dict(zip(columnas, f)) for f in filas]
+    # Normalizar fecha_creacion a texto: en PostgreSQL viene como datetime
+    # y en SQLite como string ISO. El template espera poder cortar los
+    # primeros 10 caracteres (YYYY-MM-DD).
+    for u in usuarios:
+        fecha = u.get('fecha_creacion')
+        if fecha is not None and not isinstance(fecha, str):
+            u['fecha_creacion'] = fecha.isoformat()
     return render_template('usuarios.html', usuarios=usuarios, roles=ROLES_VALIDOS)
 
 

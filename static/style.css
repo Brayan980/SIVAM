@@ -219,6 +219,8 @@ body {
   letter-spacing: 0.05em;
   color: var(--tinta-suave);
   margin-bottom: 3px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .dato dd {
   margin: 0;
@@ -999,12 +1001,25 @@ body {
   letter-spacing: 0.05em;
   color: var(--tinta-suave);
   margin-bottom: 4px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .dato dd {
   margin: 0;
   font-size: 1rem;
   color: var(--tinta);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Evitar que etiquetas/valores largos (nombres de campo sin espacios,
+   ej. HABITOS_Y_ESTILOS_DE_VIDA...) se desborden del contenedor. */
+.dato {
+  min-width: 0;
+}
+.ficha-datos {
+  overflow: hidden;
 }
 
 .ficha-pie {
@@ -2128,7 +2143,7 @@ body {
 }
 .modal-cerrar:hover { color: #34433c; }
 
-.modal-body { padding: 20px; }
+.modal-body { padding: 20px; overflow-wrap: anywhere; word-break: break-word; }
 .modal-cargando { text-align: center; color: #8a9a92; padding: 20px; }
 
 .modal-footer {
@@ -2167,6 +2182,9 @@ body {
   border-radius: 8px;
   font-size: 13px;
   color: #4a5a52;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
 }
 
 .modulo-mini-titulo { font-weight: 600; color: #34433c; }
@@ -3270,4 +3288,60 @@ html.tema-oscuro .boton-secundario {
   position: static;
   left: auto;
   font-size: 15px;
+}
+
+/* =========================================================
+   Indicador de carga global (overlay + spinner)
+   ========================================================= */
+.sivam-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(30, 42, 50, 0.35);
+  backdrop-filter: blur(2px);
+}
+
+.sivam-loader.activo {
+  display: flex;
+}
+
+.sivam-loader-caja {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 34px;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.sivam-loader-spinner {
+  width: 46px;
+  height: 46px;
+  border: 4px solid var(--acento-suave);
+  border-top-color: var(--acento);
+  border-radius: 50%;
+  animation: sivam-spin 0.8s linear infinite;
+}
+
+.sivam-loader-texto {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--tinta);
+}
+
+@keyframes sivam-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sivam-loader-spinner {
+    animation-duration: 1.6s;
+  }
 }

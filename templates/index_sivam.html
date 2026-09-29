@@ -54,7 +54,7 @@
 
     <div class="ficha-pie">
       <div class="ficha-acciones">
-        <a class="boton-nuevo-sivam" href="/paciente/{{ paciente.id }}/dashboard"><i class="fas fa-chart-pie"></i> Ver Dashboard</a>
+        <a class="boton-nuevo-sivam" href="/paciente/{{ paciente.id }}/dashboard"><i class="fas fa-chart-pie"></i> Ver Resumen</a>
         <a class="boton-secundario" href="/editar/{{ paciente.id }}">Editar</a>
         <form method="post" action="/eliminar/{{ paciente.id }}"
               onsubmit="return confirm('¿Eliminar a {{ paciente.nombres }} {{ paciente.apellidos }}? Esta acción no se puede deshacer.');">
