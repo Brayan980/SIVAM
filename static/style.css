@@ -221,6 +221,8 @@ body {
   margin-bottom: 3px;
   overflow-wrap: anywhere;
   word-break: break-word;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .dato dd {
   margin: 0;
@@ -1004,12 +1006,25 @@ body {
   margin-bottom: 4px;
   overflow-wrap: anywhere;
   word-break: break-word;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .dato dd {
   margin: 0;
   font-size: 1rem;
   color: var(--tinta);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Evitar que etiquetas/valores largos (nombres de campo sin espacios,
+   ej. HABITOS_Y_ESTILOS_DE_VIDA...) se desborden del contenedor. */
+.dato {
+  min-width: 0;
+}
+.ficha-datos {
+  overflow: hidden;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -2145,6 +2160,7 @@ body {
 .modal-cerrar:hover { color: #34433c; }
 
 .modal-body { padding: 20px; overflow-wrap: anywhere; word-break: break-word; }
+.modal-body { padding: 20px; overflow-wrap: anywhere; word-break: break-word; }
 .modal-cargando { text-align: center; color: #8a9a92; padding: 20px; }
 
 .modal-footer {
@@ -2183,6 +2199,9 @@ body {
   border-radius: 8px;
   font-size: 13px;
   color: #4a5a52;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
   min-width: 0;
