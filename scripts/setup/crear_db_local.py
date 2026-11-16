@@ -45,8 +45,30 @@ CREATE TABLE IF NOT EXISTS pacientes (
     ejercicio_y_actividad_fisica_leve_moderado_intenso TEXT,
     actividad_sexual TEXT,
     riesgo_cardiovascular_con_riesgo_o_sin_riesgo TEXT,
-    busqueda TEXT
+    busqueda TEXT,
+    autoriza_tratamiento_datos INTEGER CHECK (autoriza_tratamiento_datos IN (0, 1)),
+    fecha_autorizacion TEXT,
+    version_politica TEXT,
+    texto_autorizacion_aceptado TEXT
 );
+
+CREATE TABLE IF NOT EXISTS consentimientos_tratamiento_datos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    paciente_id INTEGER NOT NULL REFERENCES pacientes(id) ON DELETE RESTRICT,
+    autoriza_tratamiento_datos INTEGER NOT NULL CHECK (autoriza_tratamiento_datos = 1),
+    fecha_autorizacion TEXT NOT NULL,
+    version_politica TEXT NOT NULL,
+    texto_autorizacion_aceptado TEXT NOT NULL,
+    registrado_por INTEGER REFERENCES usuarios(id),
+    fecha_registro TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TRIGGER IF NOT EXISTS consentimientos_solo_insercion_actualizar
+BEFORE UPDATE ON consentimientos_tratamiento_datos
+BEGIN SELECT RAISE(ABORT, 'La evidencia de consentimiento no puede modificarse'); END;
+CREATE TRIGGER IF NOT EXISTS consentimientos_solo_insercion_eliminar
+BEFORE DELETE ON consentimientos_tratamiento_datos
+BEGIN SELECT RAISE(ABORT, 'La evidencia de consentimiento no puede eliminarse'); END;
 
 CREATE TABLE IF NOT EXISTS antropometria (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

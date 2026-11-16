@@ -7,6 +7,7 @@ from functools import wraps
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from dotenv import load_dotenv
 import os
+from datetime import datetime, timezone
 from campos import CAMPOS, CAMPOS_CLINICOS, ETIQUETAS, normalizar
 from db import conectar
 import exportar
@@ -18,11 +19,45 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'clave-secreta-para-sesiones')
 
+# Versionar el texto permite demostrar qué información se presentó al titular.
+VERSION_POLITICA_DATOS = 'SIVAM-PTD-1.0-2026-11-12'
+TEXTO_AUTORIZACION_DATOS = (
+    'Autorizo de manera previa, expresa e informada a la Corporación Universitaria '
+    'del Caribe - CECAR, Área de Ciencias del Deporte y Actividad Física, para '
+    'recolectar, almacenar, usar, actualizar y suprimir mis datos personales, '
+    'socioeconómicos y datos sensibles de salud y condición física, incluidos los '
+    'resultados de Antropometría, MoCA, Tinetti, VO2 Max y Chair Stand, con las '
+    'finalidades descritas en la Política de Tratamiento de Datos Personales de SIVAM.'
+)
+
+# Se conservan como evidencia interna, pero no son datos clínicos que deban
+# aparecer en la ficha principal ni en el modal del paciente.
+CAMPOS_AUDITORIA_PRIVACIDAD = {
+    'autoriza_tratamiento_datos', 'fecha_autorizacion', 'version_politica',
+    'texto_autorizacion_aceptado',
+}
+
+
+def _fecha_autorizacion_servidor():
+    """Marca de tiempo UTC generada por el servidor, no por el navegador."""
+    return datetime.now(timezone.utc)
+
 # Configuración de Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Por favor inicia sesión para acceder a esta página.'
+
+
+@app.route('/health')
+def health():
+    """Endpoint ligero para monitoreo (UptimeRobot, cron-job, etc.).
+
+    No requiere login ni consulta la base de datos, así que responde de
+    inmediato. Sirve para hacer 'ping' periódico y evitar que Render
+    duerma el servicio (cold start) en el plan gratuito.
+    """
+    return 'ok', 200
 
 
 class User(UserMixin):
@@ -121,6 +156,13 @@ def usuarios_lista():
     columnas = [desc[0] for desc in cursor.description]
     conexion.close()
     usuarios = [dict(zip(columnas, f)) for f in filas]
+    # Normalizar fecha_creacion a texto: en PostgreSQL viene como datetime
+    # y en SQLite como string ISO. El template espera poder cortar los
+    # primeros 10 caracteres (YYYY-MM-DD).
+    for u in usuarios:
+        fecha = u.get('fecha_creacion')
+        if fecha is not None and not isinstance(fecha, str):
+            u['fecha_creacion'] = fecha.isoformat()
     return render_template('usuarios.html', usuarios=usuarios, roles=ROLES_VALIDOS)
 
 
@@ -233,6 +275,13 @@ def usuarios_eliminar(user_id):
     return redirect(url_for('usuarios_lista'))
 
 
+@app.route('/pacientes')
+@login_required
+def pacientes():
+    """Alias limpio para la lista de pacientes, sin heredar parámetros."""
+    return redirect(url_for('index'))
+
+
 @app.route('/')
 @login_required
 def index():
@@ -328,7 +377,8 @@ def index():
         detalle = [
             (ETIQUETAS.get(campo, campo), valor)
             for campo, valor in paciente.items()
-            if campo not in ('id', 'nombres', 'apellidos', 'busqueda') and valor not in (None, '')
+            if campo not in ('id', 'nombres', 'apellidos', 'busqueda')
+            and campo not in CAMPOS_AUDITORIA_PRIVACIDAD and valor not in (None, '')
             and campo not in ['antropometria', 'vo2_max', 'test_moca', 'test_tinetti', 'test_chair_stand', 'caracterizacion']
         ]
 
@@ -536,7 +586,8 @@ def paciente_ficha(paciente_id):
     detalle = [
         (ETIQUETAS.get(campo, campo), valor)
         for campo, valor in paciente.items()
-        if campo not in ('id', 'nombres', 'apellidos', 'busqueda') and valor not in (None, '')
+        if campo not in ('id', 'nombres', 'apellidos', 'busqueda')
+        and campo not in CAMPOS_AUDITORIA_PRIVACIDAD and valor not in (None, '')
     ]
 
     return render_template('_ficha_modal.html', paciente=paciente, detalle=detalle, modulos=modulos)
@@ -556,6 +607,18 @@ def _procesar_formulario(request_form):
     return errores, nombres, apellidos, valores_clinicos, busqueda
 
 
+def _registrar_autorizacion(cursor, paciente_id, fecha_autorizacion):
+    """Conserva una evidencia que el trigger de BD no permite modificar."""
+    cursor.execute(
+        '''INSERT INTO consentimientos_tratamiento_datos
+           (paciente_id, autoriza_tratamiento_datos, fecha_autorizacion,
+            version_politica, texto_autorizacion_aceptado, registrado_por)
+           VALUES (%s, %s, %s, %s, %s, %s)''',
+        (paciente_id, True, fecha_autorizacion, VERSION_POLITICA_DATOS,
+         TEXTO_AUTORIZACION_DATOS, getattr(current_user, 'id', None))
+    )
+
+
 @app.route('/nuevo', methods=['GET', 'POST'])
 @login_required
 def nuevo():
@@ -563,18 +626,25 @@ def nuevo():
 
     if request.method == 'POST':
         errores, nombres, apellidos, valores_clinicos, busqueda = _procesar_formulario(request.form)
+        if request.form.get('autoriza_tratamiento_datos') != 'si':
+            errores.append('Debes otorgar la autorización para el tratamiento de datos antes de registrar al paciente.')
 
         if not errores:
             conexion = conectar()
             cursor = conexion.cursor()
             columnas_insert = ', '.join(CAMPOS)
             placeholders = ', '.join(['%s'] * len(CAMPOS))
+            fecha_autorizacion = _fecha_autorizacion_servidor()
             cursor.execute(
-                f'INSERT INTO pacientes ({columnas_insert}, busqueda) '
-                f'VALUES ({placeholders}, %s) RETURNING id',
-                [nombres, apellidos] + valores_clinicos + [busqueda]
+                f'INSERT INTO pacientes ({columnas_insert}, busqueda, '
+                'autoriza_tratamiento_datos, fecha_autorizacion, version_politica, '
+                'texto_autorizacion_aceptado) '
+                f'VALUES ({placeholders}, %s, %s, %s, %s, %s) RETURNING id',
+                [nombres, apellidos] + valores_clinicos + [busqueda, True,
+                 fecha_autorizacion, VERSION_POLITICA_DATOS, TEXTO_AUTORIZACION_DATOS]
             )
             nuevo_id = cursor.fetchone()[0]
+            _registrar_autorizacion(cursor, nuevo_id, fecha_autorizacion)
             conexion.commit()
             conexion.close()
 
@@ -588,6 +658,9 @@ def nuevo():
         valores=request.form,
         modo='nuevo',
         paciente_id=None,
+        tiene_autorizacion=False,
+        texto_autorizacion=TEXTO_AUTORIZACION_DATOS,
+        version_politica=VERSION_POLITICA_DATOS,
     )
 
 
@@ -605,6 +678,7 @@ def editar(paciente_id):
 
     columnas = [desc[0] for desc in cursor.description]
     valores = dict(zip(columnas, fila))
+    valores_originales = valores.copy()
     errores = []
 
     if request.method == 'POST':
@@ -617,11 +691,35 @@ def editar(paciente_id):
                 f'UPDATE pacientes SET {asignaciones}, busqueda = %s WHERE id = %s',
                 [nombres, apellidos] + valores_clinicos + [busqueda, paciente_id]
             )
+            # Un registro histórico continúa disponible sin presumir autorización.
+            # Si el titular la otorga en esta edición, se crea evidencia nueva.
+            if not valores_originales.get('autoriza_tratamiento_datos') and request.form.get('autoriza_tratamiento_datos') == 'si':
+                fecha_autorizacion = _fecha_autorizacion_servidor()
+                cursor.execute(
+                    '''UPDATE pacientes
+                       SET autoriza_tratamiento_datos = %s, fecha_autorizacion = %s,
+                           version_politica = %s, texto_autorizacion_aceptado = %s
+                       WHERE id = %s''',
+                    (True, fecha_autorizacion, VERSION_POLITICA_DATOS,
+                     TEXTO_AUTORIZACION_DATOS, paciente_id)
+                )
+                _registrar_autorizacion(cursor, paciente_id, fecha_autorizacion)
             conexion.commit()
             conexion.close()
-            return redirect(url_for('index', id=paciente_id))
+            # Volver al origen guardado en el form hidden, o al dashboard del paciente
+            volver = request.form.get('volver_url') or url_for('dashboard_paciente', paciente_id=paciente_id)
+            return redirect(volver)
 
     conexion.close()
+
+    # Determinar destino del botón Volver según origen
+    origen = request.args.get('origen', '')
+    if origen == 'lista':
+        volver_url = url_for('historia_clinica')
+    elif origen == 'pacientes':
+        volver_url = url_for('index')
+    else:
+        volver_url = url_for('dashboard_paciente', paciente_id=paciente_id)
 
     return render_template(
         'formulario_paciente_sivam.html',
@@ -631,6 +729,22 @@ def editar(paciente_id):
         valores=valores,
         modo='editar',
         paciente_id=paciente_id,
+        volver_url=volver_url,
+        tiene_autorizacion=bool(valores_originales.get('autoriza_tratamiento_datos')),
+        texto_autorizacion=TEXTO_AUTORIZACION_DATOS,
+        version_politica=VERSION_POLITICA_DATOS,
+    )
+
+
+@app.route('/politica-tratamiento-datos')
+def politica_tratamiento_datos():
+    """Política pública, disponible antes de entregar la autorización."""
+    return render_template(
+        'politica_tratamiento_datos.html',
+        version_politica=VERSION_POLITICA_DATOS,
+        contacto_datos=os.getenv('CONTACTO_PROTECCION_DATOS') or 'pendiente de configuración institucional',
+        telefono_datos=os.getenv('TELEFONO_PROTECCION_DATOS') or 'pendiente de configuración institucional',
+        direccion_datos=os.getenv('DIRECCION_PROTECCION_DATOS') or 'pendiente de configuración institucional',
     )
 
 
@@ -837,6 +951,11 @@ def configuracion():
     total_pacientes = cursor.fetchone()[0]
     cursor.execute('SELECT COUNT(DISTINCT paciente_id) FROM test_moca')
     total_moca = cursor.fetchone()[0]
+    total_evaluaciones = 0
+    for tabla in ('antropometria', 'vo2_max', 'test_moca', 'test_tinetti',
+                  'test_chair_stand', 'caracterizacion_socioeconomica'):
+        cursor.execute(f'SELECT COUNT(*) FROM {tabla}')
+        total_evaluaciones += cursor.fetchone()[0]
     conexion.close()
 
     usuario = getattr(current_user, 'usuario', None)
@@ -847,6 +966,8 @@ def configuracion():
         version='1.0.0',
         total_pacientes=total_pacientes,
         total_moca=total_moca,
+        total_evaluaciones=total_evaluaciones,
+        tipo_base='PostgreSQL / Supabase' if os.getenv('DATABASE_URL') else 'SQLite (local)',
         usuario=usuario,
         rol=rol,
     )
@@ -1104,7 +1225,13 @@ def antropometria():
 @app.route('/registrar_modulo/<modulo>/<int:paciente_id>')
 @login_required
 def registrar_modulo(modulo, paciente_id):
-    """Fija el paciente en sesión y redirige al formulario del módulo."""
+    """Fija el paciente en sesión y redirige al formulario del módulo.
+
+    El parámetro opcional ?origen= indica desde dónde se llegó:
+      - 'dashboard' → volver al dashboard del paciente
+      - 'lista' (o cualquier otro valor) → volver a la lista del módulo
+    Por defecto, si no se indica, se vuelve a la lista del módulo.
+    """
     from flask import session
     modulos_validos = {
         'antropometria': 'antropometria_formulario',
@@ -1114,12 +1241,30 @@ def registrar_modulo(modulo, paciente_id):
         'test_chair_stand': 'test_chair_stand_formulario',
         'caracterizacion': 'caracterizacion_socioeconomica',
     }
+    # Rutas de lista por módulo (para volver a la lista correspondiente)
+    listas_modulos = {
+        'antropometria': 'antropometria',
+        'vo2_max': 'vo2_max',
+        'test_moca': 'test_moca',
+        'test_tinetti': 'test_tinetti',
+        'test_chair_stand': 'test_chair_stand',
+        'caracterizacion': 'caracterizacion',
+    }
     destino = modulos_validos.get(modulo)
     if not destino:
         return redirect(url_for('index'))
+
+    origen = request.args.get('origen', 'lista')
+    if origen == 'dashboard':
+        volver = url_for('dashboard_paciente', paciente_id=paciente_id)
+    elif origen == 'pacientes':
+        volver = url_for('index')
+    else:
+        lista_route = listas_modulos.get(modulo)
+        volver = url_for(lista_route) if lista_route else url_for('index')
+
     session['paciente_seleccionado_id'] = paciente_id
-    # Se llegó al formulario desde la ficha/dashboard: volver ahí (a la ficha del paciente)
-    session['volver_formulario_url'] = url_for('index', id=paciente_id)
+    session['volver_formulario_url'] = volver
     return redirect(url_for(destino))
 
 
@@ -1267,11 +1412,12 @@ def antropometria_formulario():
 
         conexion.commit()
         conexion.close()
-        return redirect(url_for('antropometria'))
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('antropometria')
+        return redirect(volver)
 
     conexion.close()
 
-    volver_url = session.get('volver_formulario_url') or url_for('index', id=paciente_id)
+    volver_url = session.pop('volver_formulario_url', None) or url_for('antropometria')
 
     return render_template(
         'antropometria.html',
@@ -1426,11 +1572,12 @@ def vo2_max_formulario():
 
         conexion.commit()
         conexion.close()
-        return redirect(url_for('vo2_max'))
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('vo2_max')
+        return redirect(volver)
 
     conexion.close()
 
-    volver_url = session.get('volver_formulario_url') or url_for('index', id=paciente_id)
+    volver_url = session.pop('volver_formulario_url', None) or url_for('vo2_max')
 
     return render_template('vo2_max.html', paciente=paciente_dict, valores=valores,
                            existe=bool(vo2_existente), volver_url=volver_url)
@@ -1623,11 +1770,12 @@ def test_moca_formulario():
 
         conexion.commit()
         conexion.close()
-        return redirect(url_for('test_moca'))
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('test_moca')
+        return redirect(volver)
 
     conexion.close()
 
-    volver_url = session.get('volver_formulario_url') or url_for('index', id=paciente_id)
+    volver_url = session.pop('volver_formulario_url', None) or url_for('test_moca')
     return render_template('test_moca.html', paciente=paciente_dict, valores=valores,
                            existe=bool(test_existente), volver_url=volver_url)
 
@@ -1803,11 +1951,12 @@ def test_tinetti_formulario():
 
         conexion.commit()
         conexion.close()
-        return redirect(url_for('test_tinetti'))
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('test_tinetti')
+        return redirect(volver)
 
     conexion.close()
 
-    volver_url = session.get('volver_formulario_url') or url_for('index', id=paciente_id)
+    volver_url = session.pop('volver_formulario_url', None) or url_for('test_tinetti')
     return render_template('test_tinetti.html', paciente=paciente_dict, valores=valores,
                            existe=bool(test_existente), volver_url=volver_url)
 
@@ -1962,11 +2111,12 @@ def test_chair_stand_formulario():
 
         conexion.commit()
         conexion.close()
-        return redirect(url_for('test_chair_stand'))
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('test_chair_stand')
+        return redirect(volver)
 
     conexion.close()
 
-    volver_url = session.get('volver_formulario_url') or url_for('index', id=paciente_id)
+    volver_url = session.pop('volver_formulario_url', None) or url_for('test_chair_stand')
     return render_template('test_chair_stand.html', paciente=paciente_dict, valores=valores,
                            existe=bool(test_existente), volver_url=volver_url)
 
@@ -2085,11 +2235,12 @@ def caracterizacion_socioeconomica():
 
         conexion.commit()
         conexion.close()
-        return redirect(url_for('index', id=paciente_id))
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('caracterizacion')
+        return redirect(volver)
 
     conexion.close()
 
-    volver_url = session.get('volver_formulario_url') or url_for('index', id=paciente_id)
+    volver_url = session.pop('volver_formulario_url', None) or url_for('caracterizacion')
     return render_template('caracterizacion_socioeconomica.html', paciente=paciente_dict, valores=valores,
                            existe=bool(caract_existente), volver_url=volver_url)
 

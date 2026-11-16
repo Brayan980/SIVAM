@@ -17,13 +17,49 @@ import os
 import sqlite3
 
 import psycopg2
+from urllib.parse import quote_plus
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv('DATABASE_URL')
+
+def _construir_database_url():
+    """Obtiene la cadena de conexión.
+
+    Prioridad:
+    1. DATABASE_URL completa (si ya está lista).
+    2. Piezas separadas (SUPABASE_HOST, SUPABASE_USER, SUPABASE_PASSWORD, ...).
+       Útil cuando la contraseña tiene caracteres especiales (+, $, &, @, etc.):
+       aquí se codifican automáticamente para que la URL sea válida.
+    """
+    url = os.getenv('DATABASE_URL')
+    if url:
+        return url
+
+    password = os.getenv('SUPABASE_PASSWORD')
+    if password:
+        host = os.getenv(
+            'SUPABASE_HOST',
+            'aws-0-us-east-1.pooler.supabase.com',
+        )
+        user = os.getenv('SUPABASE_USER', 'postgres.jxrwmxzhnjqzbevdaqfc')
+        port = os.getenv('SUPABASE_PORT', '5432')
+        dbname = os.getenv('SUPABASE_DB', 'postgres')
+        return (
+            f'postgresql://{user}:{quote_plus(password)}'
+            f'@{host}:{port}/{dbname}'
+        )
+
+    return None
+
+
+DATABASE_URL = _construir_database_url()
 if not DATABASE_URL:
-    raise SystemExit('Falta DATABASE_URL (cadena de conexión de Supabase).')
+    raise SystemExit(
+        'Falta la conexión. Define DATABASE_URL completa, o bien '
+        'SUPABASE_PASSWORD (y opcionalmente SUPABASE_HOST/USER/PORT/DB).'
+    )
 
 _RAIZ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SQLITE_PATH = os.path.join(_RAIZ, 'data', 'clinica.db')

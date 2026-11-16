@@ -16,7 +16,7 @@
 </div>
 
 {% if modo == 'editar' %}
-  <a class="volver-sivam" href="/?id={{ paciente_id }}">&larr; Volver a la ficha</a>
+  <a class="volver-sivam" href="{{ volver_url or '/historia_clinica' }}">&larr; Volver</a>
 {% else %}
   <a class="volver-sivam" href="/historia_clinica">&larr; Volver</a>
 {% endif %}
@@ -28,6 +28,7 @@
 {% endif %}
 
 <form method="post" class="hc-form" action="{{ '/editar/' ~ paciente_id if modo == 'editar' else '/nuevo' }}">
+  <input type="hidden" name="volver_url" value="{{ volver_url or '' }}">
 
   {# ===== Datos del Paciente ===== #}
   <section class="form-seccion">
@@ -135,6 +136,30 @@
         </select>
       </div>
     </div>
+  </section>
+
+  {# La evidencia aceptada no se edita: el registro de auditoría conserva el texto y fecha originales. #}
+  <section class="form-seccion privacidad-seccion" aria-labelledby="titulo-privacidad">
+    <h3 id="titulo-privacidad" class="form-seccion-titulo"><i class="fas fa-shield-heart"></i> Autorización de tratamiento de datos</h3>
+    <p class="privacidad-aviso"><strong>Aviso de privacidad:</strong> CECAR, por medio del Área de Ciencias del Deporte y Actividad Física, es responsable del tratamiento de los datos recolectados en SIVAM para valoración, seguimiento y gestión académica/investigativa autorizada. Conoce las finalidades, tus derechos y el procedimiento para ejercerlos en la <a href="{{ url_for('politica_tratamiento_datos') }}" target="_blank" rel="noopener">Política de Tratamiento de Datos Personales</a>.</p>
+    <p class="privacidad-aviso">Las respuestas sobre datos de salud y condición física son facultativas. Puedes conocer, actualizar, rectificar, suprimir tus datos o revocar la autorización mediante los canales indicados en la política.</p>
+
+    {% if tiene_autorizacion %}
+      <div class="consentimiento-registrado" role="status">
+        <i class="fas fa-circle-check"></i>
+        <span>Autorización registrada el {{ valores.get('fecha_autorizacion') }} · versión {{ valores.get('version_politica') }}. La evidencia original está protegida contra modificaciones.</span>
+      </div>
+    {% else %}
+      <label class="consentimiento-checkbox" for="autoriza_tratamiento_datos">
+        <input type="checkbox" id="autoriza_tratamiento_datos" name="autoriza_tratamiento_datos" value="si"
+          {% if modo == 'nuevo' %}required{% endif %}
+          {% if valores.get('autoriza_tratamiento_datos') == 'si' %}checked{% endif %}>
+        <span>{{ texto_autorizacion }} He leído el aviso de privacidad y la política, versión {{ version_politica }}.</span>
+      </label>
+      {% if modo == 'editar' %}
+        <p class="privacidad-ayuda">Este registro histórico no tiene una autorización comprobable. Marque la casilla únicamente si el titular la otorga ahora; no se presume por los datos importados.</p>
+      {% endif %}
+    {% endif %}
   </section>
 
   <div class="form-acciones">

@@ -54,8 +54,8 @@
 
     <div class="ficha-pie">
       <div class="ficha-acciones">
-        <a class="boton-nuevo-sivam" href="/paciente/{{ paciente.id }}/dashboard"><i class="fas fa-chart-pie"></i> Ver Dashboard</a>
-        <a class="boton-secundario" href="/editar/{{ paciente.id }}">Editar</a>
+        <a class="boton-nuevo-sivam" href="/paciente/{{ paciente.id }}/dashboard"><i class="fas fa-chart-pie"></i> Ver Resumen</a>
+        <a class="boton-secundario" href="/editar/{{ paciente.id }}?origen=pacientes">Editar</a>
         <form method="post" action="/eliminar/{{ paciente.id }}"
               onsubmit="return confirm('¿Eliminar a {{ paciente.nombres }} {{ paciente.apellidos }}? Esta acción no se puede deshacer.');">
           <button type="submit" class="boton-peligro">Eliminar</button>
@@ -82,7 +82,7 @@
       <div class="modulos-grid">
         {% for clave, modulo, icono, etiqueta in modulos_disponibles %}
           {% set tiene_registro = paciente.get(clave) %}
-          <a href="/registrar_modulo/{{ modulo }}/{{ paciente.id }}"
+          <a href="/registrar_modulo/{{ modulo }}/{{ paciente.id }}?origen=pacientes"
              class="modulo-card {{ 'modulo-card-registrado' if tiene_registro else '' }}"
              title="{{ 'Editar ' ~ etiqueta if tiene_registro else 'Registrar ' ~ etiqueta }}">
             <i class="fas {{ icono }}"></i>
@@ -114,7 +114,7 @@
             <div class="dato-card-head">
               <span class="dato-card-icono"><i class="fas fa-ruler-vertical"></i></span>
               <h4>Antropometría</h4>
-              <a href="/registrar_modulo/antropometria/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+              <a href="/registrar_modulo/antropometria/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
               <span class="chip">{{ paciente.antropometria.peso }} kg</span>
@@ -129,7 +129,7 @@
             <div class="dato-card-head">
               <span class="dato-card-icono"><i class="fas fa-heartbeat"></i></span>
               <h4>VO2 Max</h4>
-              <a href="/registrar_modulo/vo2_max/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+              <a href="/registrar_modulo/vo2_max/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
               <span class="chip">{{ paciente.vo2_max.vo2_max }} ml/kg/min</span>
@@ -143,7 +143,7 @@
             <div class="dato-card-head">
               <span class="dato-card-icono"><i class="fas fa-brain"></i></span>
               <h4>Test MoCA</h4>
-              <a href="/registrar_modulo/test_moca/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+              <a href="/registrar_modulo/test_moca/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
               <span class="chip chip-destacado">{{ paciente.test_moca.resultado }}</span>
@@ -156,7 +156,7 @@
             <div class="dato-card-head">
               <span class="dato-card-icono"><i class="fas fa-walking"></i></span>
               <h4>Test Tinetti</h4>
-              <a href="/registrar_modulo/test_tinetti/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+              <a href="/registrar_modulo/test_tinetti/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
               <span class="chip chip-destacado">{{ paciente.test_tinetti.resultado }}</span>
@@ -169,7 +169,7 @@
             <div class="dato-card-head">
               <span class="dato-card-icono"><i class="fas fa-chair"></i></span>
               <h4>Test Chair Stand</h4>
-              <a href="/registrar_modulo/test_chair_stand/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+              <a href="/registrar_modulo/test_chair_stand/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
               <span class="chip chip-destacado">{{ paciente.test_chair_stand.resultado }}</span>
@@ -182,7 +182,7 @@
             <div class="dato-card-head">
               <span class="dato-card-icono"><i class="fas fa-house-user"></i></span>
               <h4>Caracterización</h4>
-              <a href="/registrar_modulo/caracterizacion/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+              <a href="/registrar_modulo/caracterizacion/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
               {% if paciente.caracterizacion.escolaridad %}<span class="chip">{{ paciente.caracterizacion.escolaridad }}</span>{% endif %}
@@ -231,7 +231,7 @@
                       title="Ver ficha"
                       onclick="verPaciente({{ r.id }})"><i class="fas fa-eye"></i></button>
               <a class="accion-btn accion-editar" title="Editar"
-                 href="/editar/{{ r.id }}"><i class="fas fa-pen"></i></a>
+                 href="/editar/{{ r.id }}?origen=pacientes"><i class="fas fa-pen"></i></a>
               <button type="button" class="accion-btn accion-eliminar"
                       title="Eliminar"
                       onclick="confirmarEliminar({{ r.id }}, '{{ (r.nombres ~ ' ' ~ r.apellidos)|e }}')"><i class="fas fa-trash"></i></button>
