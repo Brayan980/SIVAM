@@ -219,6 +219,8 @@ body {
   letter-spacing: 0.05em;
   color: var(--tinta-suave);
   margin-bottom: 3px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .dato dd {
   margin: 0;
@@ -602,9 +604,10 @@ body {
 
 /* Submenú colapsado por defecto */
 .nav-submenu {
-  background: rgba(0, 0, 0, 0.2);
-  margin-left: 36px;
-  border-radius: 0 0 8px 8px;
+  background: rgba(255, 255, 255, 0.09);
+  margin: 2px 12px 4px 36px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 9px;
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.25s ease;
@@ -621,8 +624,8 @@ body {
 
 .nav-subitem {
   display: block;
-  padding: 10px 16px;
-  color: rgba(255, 255, 255, 0.7);
+  padding: 10px 13px;
+  color: rgba(255, 255, 255, 0.82);
   text-decoration: none;
   font-size: 0.9rem;
   transition: all 0.2s;
@@ -630,7 +633,7 @@ body {
 
 .nav-subitem:hover {
   color: white;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.10);
 }
 
 .nav-subitem-active {
@@ -750,6 +753,18 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+.dashboard-pacientes-meta {
+  margin-top: 7px;
+  color: var(--tinta-suave);
+  font-size: .78rem;
+}
+.dashboard-inactivos-link {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
+  padding: 5px 8px; border-radius: 999px; background: #fff1d7;
+  color: #8a5b0a; font-size: .78rem; font-weight: 700; text-decoration: none;
+}
+.dashboard-inactivos-link:hover { background: #ffe5b3; }
+.dashboard-inactivos-link span { margin-left: 2px; text-decoration: underline; }
 
 .page-header {
   margin-bottom: 24px;
@@ -999,12 +1014,25 @@ body {
   letter-spacing: 0.05em;
   color: var(--tinta-suave);
   margin-bottom: 4px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .dato dd {
   margin: 0;
   font-size: 1rem;
   color: var(--tinta);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Evitar que etiquetas/valores largos (nombres de campo sin espacios,
+   ej. HABITOS_Y_ESTILOS_DE_VIDA...) se desborden del contenedor. */
+.dato {
+  min-width: 0;
+}
+.ficha-datos {
+  overflow: hidden;
 }
 
 .ficha-pie {
@@ -2076,6 +2104,32 @@ body {
 .accion-ver:hover { color: #2f7d4f; }
 .accion-editar:hover { color: #4a90d9; }
 .accion-eliminar:hover { color: #e0553b; border-color: #f2c4bc; }
+.accion-inactivar:hover { color: #9a6b19; border-color: #e9ca83; background: #fff7e5; }
+.accion-reactivar:hover { color: #20743b; border-color: #9ed1ac; background: #effaf1; }
+
+/* Estado operativo de pacientes: la inactivación conserva la historia. */
+.filtros-estado { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.filtro-estado {
+  padding: 6px 12px; border: 1px solid var(--borde); border-radius: 999px;
+  color: var(--tinta-suave); text-decoration: none; font-size: .86rem; font-weight: 600;
+}
+.filtro-estado:hover, .filtro-estado.activo { background: var(--acento-suave); border-color: var(--acento); color: var(--acento); }
+.estado-paciente {
+  display: inline-flex; align-items: center; gap: 5px; width: fit-content;
+  padding: 4px 8px; border-radius: 999px; font-size: .78rem; font-weight: 700; white-space: nowrap;
+}
+.estado-paciente-activo { background: #e4f5e9; color: #20743b; }
+.estado-paciente-inactivo { background: #fff1d7; color: #8a5b0a; }
+.boton-inactivar {
+  padding: 10px 20px; border: 2px solid #b47a16; border-radius: 8px;
+  background: transparent; color: #8a5b0a; font-weight: 700; cursor: pointer; transition: all .2s;
+}
+.boton-inactivar:hover { background: #fff1d7; }
+.boton-reactivar {
+  padding: 10px 20px; border: 2px solid #2f7d4f; border-radius: 8px;
+  background: transparent; color: #23653d; font-weight: 700; cursor: pointer; transition: all .2s;
+}
+.boton-reactivar:hover { background: #e4f5e9; }
 
 /* ===== Modales (ventanas emergentes) ===== */
 .modal-overlay {
@@ -2128,7 +2182,7 @@ body {
 }
 .modal-cerrar:hover { color: #34433c; }
 
-.modal-body { padding: 20px; }
+.modal-body { padding: 20px; overflow-wrap: anywhere; word-break: break-word; }
 .modal-cargando { text-align: center; color: #8a9a92; padding: 20px; }
 
 .modal-footer {
@@ -2167,6 +2221,9 @@ body {
   border-radius: 8px;
   font-size: 13px;
   color: #4a5a52;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
 }
 
 .modulo-mini-titulo { font-weight: 600; color: #34433c; }
@@ -2177,6 +2234,13 @@ body {
   gap: 10px;
   justify-content: flex-end;
 }
+.ficha-privacidad {
+  margin: 18px 0; padding: 13px 15px; border: 1px solid #d8e6dd;
+  border-radius: 10px; background: #f7fbf8;
+}
+.ficha-privacidad h4 { margin: 0 0 8px; font-size: .95rem; color: #285f40; }
+.ficha-privacidad h4 i { color: #2f7d4f; margin-right: 5px; }
+.ficha-privacidad p { margin: 5px 0; }
 
 /* ===== Reporte de pendientes: estados OK / falta ===== */
 .celda-estado { text-align: center; }
@@ -2249,6 +2313,20 @@ body {
 .config-item strong { color: #34433c; }
 
 .config-btn { margin-top: 14px; display: inline-block; }
+.config-hero { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 26px 30px; margin: 20px 0 16px; overflow: hidden; color: #fff; background: linear-gradient(120deg, #1e6335, #39834b); border-radius: 18px; box-shadow: 0 10px 24px rgba(37, 105, 55, .16); }
+.config-eyebrow { margin: 0 0 8px; color: #cce9d2; font-size: .72rem; font-weight: 800; letter-spacing: .12em; }
+.config-hero h2 { margin: 0; font-size: clamp(1.35rem, 2.3vw, 1.85rem); }
+.config-hero > div > p:last-child { max-width: 650px; margin: 8px 0 0; color: rgba(255,255,255,.86); }
+.config-hero-icon { width: 74px; height: 74px; flex: 0 0 74px; display: grid; place-items: center; border-radius: 22px; color: #fff; background: rgba(255,255,255,.13); font-size: 1.8rem; transform: rotate(-5deg); }
+.config-resumen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.config-metrica { display: flex; align-items: center; gap: 12px; padding: 15px 17px; background: #fff; border: 1px solid #e4ece8; border-radius: 13px; }
+.config-metrica-icono { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; }
+.config-metrica-icono.verde { color: #24733a; background: #e8f5eb; }.config-metrica-icono.naranja { color: #b55f00; background: #fff0dc; }.config-metrica-icono.azul { color: #246b83; background: #e4f3f7; }
+.config-metrica strong, .config-metrica span { display: block; }.config-metrica strong { color: #263e2d; font-size: 1.2rem; }.config-metrica div span { color: #718075; font-size: .78rem; }
+.config-item-icon { margin-right: 5px; color: #517858; }.config-ayuda { margin: 13px 0 0; color: #849288; font-size: .78rem; line-height: 1.45; }
+.config-accesos { display: grid; gap: 8px; }.config-accesos a { display: flex; align-items: center; gap: 10px; padding: 10px; color: #405749; text-decoration: none; border-radius: 10px; transition: background .15s, transform .15s; }.config-accesos a:hover { background: #eff7ef; transform: translateX(2px); }.config-accesos > a > i:first-child { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; color: #28723a; background: #e6f3e8; }.config-accesos span { flex: 1; }.config-accesos strong, .config-accesos small { display: block; }.config-accesos strong { font-size: .84rem; }.config-accesos small { margin-top: 1px; color: #849288; font-size: .73rem; }.config-accesos > a > i:last-child { color: #94a69a; font-size: .75rem; }
+.config-link { display: inline-flex; align-items: center; gap: 7px; margin-top: 7px; color: #28723a; font-size: .85rem; font-weight: 700; text-decoration: none; }.config-link:hover { text-decoration: underline; }
+@media (max-width: 720px) { .config-hero { padding: 21px; }.config-hero-icon { display: none; }.config-resumen { grid-template-columns: 1fr; }.config-grid { grid-template-columns: 1fr; } }
 
 /* Interruptor de modo oscuro */
 .switch-tema {
@@ -2310,6 +2388,7 @@ html.tema-oscuro .tabla-panel-sivam,
 html.tema-oscuro .grafica-card,
 html.tema-oscuro .config-card,
 html.tema-oscuro .form-seccion,
+html.tema-oscuro .ficha-form-sivam,
 html.tema-oscuro .tinetti-resultado,
 html.tema-oscuro .modal-caja,
 html.tema-oscuro .buscador-sivam,
@@ -2859,79 +2938,37 @@ html.tema-oscuro .boton-secundario {
 .perfil-menu-salir:hover { background: #fdeeea; }
 .perfil-menu-salir i { color: #e0553b; }
 
-/* ===== Login rediseñado ===== */
+/* ===== Login: cálido, sencillo y fácil de usar ===== */
+.login-body { background: #f8f7f2; }
 .login-wrapper {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: #eef2f0;
-  background-image: radial-gradient(circle at 20% 20%, rgba(47,125,79,0.08), transparent 40%),
-                    radial-gradient(circle at 80% 80%, rgba(47,125,79,0.08), transparent 40%);
+  min-height: 100vh; position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; padding: 42px 5vw;
+  background: linear-gradient(135deg, #f8f7f2 0%, #f2f7ef 100%);
 }
-
+.login-mancha { position: absolute; border-radius: 50%; pointer-events: none; filter: blur(1px); }
+.login-mancha-uno { width: 420px; height: 420px; top: -170px; left: -135px; background: #dcebd8; }
+.login-mancha-dos { width: 310px; height: 310px; right: -105px; bottom: -130px; background: #fae4bd; }
 .login-card-v2 {
-  display: flex;
-  width: 100%;
-  max-width: 820px;
-  min-height: 460px;
-  background: #fff;
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+  z-index: 1; display: flex; width: min(1180px, 100%); min-height: min(680px, calc(100vh - 84px));
+  background: rgba(255,255,255,.94); border: 1px solid rgba(57,95,62,.12);
+  border-radius: 28px; overflow: hidden; box-shadow: 0 24px 65px rgba(51,78,55,.16);
 }
-
-/* Panel izquierdo */
 .login-lado {
-  position: relative;
-  width: 42%;
-  background: linear-gradient(160deg, #1e5631, #2f7d4f);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
+  position: relative; width: 49%; padding: clamp(42px, 5vw, 76px); overflow: hidden;
+  color: #fff; background: linear-gradient(145deg, #1e5c32, #347b46); display: flex; align-items: center; justify-content: center;
 }
-.login-lado-contenido { position: relative; z-index: 2; text-align: center; padding: 30px; }
-.login-lado-icono {
-  width: 80px; height: 80px;
-  margin: 0 auto 18px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.15);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 34px;
-  border: 2px solid rgba(255,255,255,0.3);
-}
-.login-lado-contenido h2 { font-size: 34px; margin: 0 0 8px; letter-spacing: 2px; }
-.login-lado-contenido p { font-size: 14px; opacity: 0.9; margin: 0 0 20px; line-height: 1.4; }
-.login-lado-marca {
-  display: inline-block;
-  font-size: 11px;
-  letter-spacing: 2px;
-  padding: 5px 14px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.15);
-}
-.login-lado-deco {
-  position: absolute;
-  width: 300px; height: 300px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.06);
-  bottom: -120px; right: -120px;
-}
-
-/* Panel derecho */
-.login-form-lado {
-  flex: 1;
-  padding: 44px 40px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-.login-form-header { margin-bottom: 24px; }
-.login-form-header h1 { font-size: 26px; color: #34433c; margin: 0 0 6px; }
-.login-form-header p { color: #8a9a92; font-size: 14px; margin: 0; }
+.login-lado-contenido { position: relative; z-index: 1; max-width: 410px; text-align: center; }
+.login-lado-icono { width: 88px; height: 88px; display: grid; place-items: center; margin: 0 auto 24px; border-radius: 50%; color: #fff; border: 2px solid rgba(255,255,255,.34); background: rgba(255,255,255,.13); font-size: 2rem; }
+.login-lado-contenido h2 { margin: 0 0 .75rem; color: #fff; font-size: clamp(2.5rem, 4vw, 4rem); line-height: 1; letter-spacing: .04em; }
+.login-lado-contenido > p { max-width: 310px; margin: 0 auto 1.7rem; color: rgba(255,255,255,.9); font-size: 1.05rem; line-height: 1.6; }
+.login-lado-marca { display: inline-flex; align-items: center; padding: .55rem .95rem; color: #fff; background: rgba(255,255,255,.14); border-radius: 999px; font-size: .72rem; font-weight: 750; letter-spacing: .13em; }
+.login-lado-deco { position: absolute; right: -95px; bottom: -100px; width: 265px; height: 265px; display: grid; place-items: center; border-radius: 50%; color: rgba(255,255,255,.14); background: rgba(255,255,255,.08); font-size: 5rem; transform: rotate(-12deg); }
+.login-form-lado { flex: 1; padding: clamp(48px, 6vw, 82px); display: flex; flex-direction: column; justify-content: center; }
+.login-form { gap: 0; }
+.login-form-header { margin-bottom: 30px; }
+.login-etiqueta { margin: 0 0 .55rem !important; color: #6d956f !important; font-size: .7rem !important; font-weight: 800; letter-spacing: .12em; }
+.login-form-header h1 { margin: 0 0 .55rem; color: #24382b; font-size: 2.35rem; letter-spacing: -.05em; }
+.login-form-header p { color: #798a7c; font-size: 1rem; margin: 0; }
 
 .login-input-icono {
   position: relative;
@@ -2946,10 +2983,11 @@ html.tema-oscuro .boton-secundario {
 }
 .login-input-icono input {
   width: 100%;
-  padding: 12px 14px 12px 40px;
-  border: 1px solid #d8e2dc;
-  border-radius: 10px;
-  font-size: 14px;
+  padding: 16px 16px 16px 44px;
+  border: 1px solid #dce6db;
+  border-radius: 13px;
+  background: #fbfcfa;
+  font-size: 16px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .login-input-icono input:focus {
@@ -2958,7 +2996,7 @@ html.tema-oscuro .boton-secundario {
   box-shadow: 0 0 0 3px rgba(47,125,79,0.12);
 }
 
-.login-campo { margin-bottom: 18px; }
+.login-campo { margin-bottom: 20px; }
 .login-campo label {
   display: block;
   font-size: 13px;
@@ -2969,21 +3007,21 @@ html.tema-oscuro .boton-secundario {
 
 .login-boton {
   width: 100%;
-  padding: 13px;
+  padding: 16px;
   border: none;
-  border-radius: 10px;
-  background: #2f7d4f;
+  border-radius: 13px;
+  background: #377747;
   color: #fff;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
+  transition: background .15s, transform .15s, box-shadow .15s;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
-.login-boton:hover { background: #256540; }
+.login-boton:hover { background: #286138; transform: translateY(-1px); box-shadow: 0 8px 16px rgba(55,119,71,.18); }
 .login-boton:active { transform: scale(0.99); }
 
 .login-errores {
@@ -2998,15 +3036,27 @@ html.tema-oscuro .boton-secundario {
 .login-errores p { margin: 0; display: flex; align-items: center; gap: 8px; }
 
 .login-pie {
-  margin-top: 24px;
+  margin: 28px 0 0;
   text-align: center;
   font-size: 11px;
-  color: #a0aca6;
+  color: #93a095;
 }
+.login-pie a { display: inline-block; margin-top: .35rem; color: #4f8055; text-decoration: none; }
+.login-pie a:hover { text-decoration: underline; }
 
-@media (max-width: 640px) {
-  .login-lado { display: none; }
-  .login-card-v2 { max-width: 400px; }
+@media (max-width: 700px) {
+  .login-wrapper { align-items: flex-start; padding: 18px; }
+  .login-card-v2 { max-width: 460px; min-height: 0; display: block; border-radius: 22px; }
+  .login-lado { width: auto; min-height: 210px; padding: 26px; }
+  .login-lado-icono { width: 52px; height: 52px; margin-bottom: 12px; font-size: 1.25rem; }
+  .login-lado-contenido h2 { margin-bottom: .4rem; font-size: 2.1rem; }
+  .login-lado-contenido > p { margin-bottom: .8rem; font-size: .88rem; }
+  .login-lado-deco { display: none; }
+  .login-form-lado { padding: 32px 26px 28px; }
+}
+@media (max-width: 380px) {
+  .login-wrapper { padding: 10px; }
+  .login-form-lado { padding: 28px 20px 24px; }
 }
 
 /* ===== Mejoras ficha de paciente: módulos y datos registrados ===== */
@@ -3271,3 +3321,370 @@ html.tema-oscuro .boton-secundario {
   left: auto;
   font-size: 15px;
 }
+
+/* =========================================================
+   Indicador de carga global (overlay + spinner)
+   ========================================================= */
+.sivam-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(30, 42, 50, 0.35);
+  backdrop-filter: blur(2px);
+}
+
+.sivam-loader.activo {
+  display: flex;
+}
+
+.sivam-loader-caja {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 34px;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.sivam-loader-spinner {
+  width: 46px;
+  height: 46px;
+  border: 4px solid var(--acento-suave);
+  border-top-color: var(--acento);
+  border-radius: 50%;
+  animation: sivam-spin 0.8s linear infinite;
+}
+
+.sivam-loader-texto {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--tinta);
+}
+
+@keyframes sivam-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sivam-loader-spinner {
+    animation-duration: 1.6s;
+  }
+}
+
+/* Protección de datos: se mantiene legible dentro de los formularios clínicos. */
+.privacidad-seccion { border-left: 4px solid var(--acento, #2f7d4f); }
+.privacidad-aviso, .privacidad-ayuda { line-height: 1.55; color: var(--tinta, #24332a); }
+.privacidad-ayuda { font-size: .9rem; margin: .7rem 0 0; }
+.consentimiento-checkbox { display: flex; gap: .7rem; align-items: flex-start; padding: 1rem; border: 1px solid var(--borde, #d5ddd7); border-radius: 8px; cursor: pointer; line-height: 1.5; }
+.consentimiento-checkbox input { width: 1.2rem; height: 1.2rem; margin-top: .2rem; flex: 0 0 auto; }
+.consentimiento-registrado { display: flex; gap: .6rem; padding: .8rem 1rem; background: #edf8f0; color: #1e6a3d; border-radius: 8px; line-height: 1.45; }
+
+/* Página pública de política de tratamiento de datos. */
+.politica-body { min-height: 100vh; background: #f4f8f7; }
+.politica-encabezado { min-height: 76px; padding: 0 7vw; display: flex; align-items: center; justify-content: space-between; gap: 1rem; background: #fff; border-bottom: 1px solid var(--borde); }
+.politica-marca { display: flex; align-items: center; gap: .75rem; color: var(--tinta); }
+.politica-marca-icono { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; color: #fff; background: var(--sivam-verde); font-size: 1.15rem; }
+.politica-marca strong, .politica-marca span { display: block; }
+.politica-marca strong { font-size: .98rem; letter-spacing: .02em; }
+.politica-marca div span { margin-top: .05rem; color: var(--tinta-suave); font-size: .77rem; }
+.politica-etiqueta { padding: .45rem .72rem; color: var(--sivam-verde-oscuro); background: #eaf5eb; border-radius: 999px; font-size: .82rem; font-weight: 650; }
+.politica-contenedor { width: min(960px, calc(100% - 2rem)); margin: 2.25rem auto 4rem; }
+.politica-portada { display: flex; gap: 1.25rem; padding: 2rem; color: #fff; border-radius: 18px; background: linear-gradient(125deg, #1b5e20, #2e7d32 68%, #488e4c); box-shadow: 0 12px 28px rgba(27, 94, 32, .18); }
+.politica-portada-icono { width: 58px; height: 58px; flex: 0 0 58px; display: grid; place-items: center; border-radius: 15px; background: rgba(255,255,255,.16); font-size: 1.55rem; }
+.politica-sobretitulo { margin: 0 0 .3rem; font-size: .73rem; font-weight: 700; letter-spacing: .11em; opacity: .82; }
+.politica-portada h1 { margin: 0; font-size: clamp(1.55rem, 4vw, 2.15rem); line-height: 1.15; }
+.politica-portada > div:last-child > p:not(.politica-sobretitulo) { margin: .65rem 0 0; max-width: 680px; opacity: .94; }
+.politica-meta { display: flex; flex-wrap: wrap; gap: .6rem 1rem; margin-top: 1rem; font-size: .8rem; opacity: .9; }
+.politica-meta i { margin-right: .28rem; }
+.politica-aviso { display: flex; gap: .8rem; align-items: flex-start; padding: 1rem 1.15rem; margin: 1.25rem 0; background: #e9f5ee; border: 1px solid #cce8d2; border-radius: 12px; color: #255c37; }
+.politica-aviso i { margin-top: .18rem; font-size: 1.05rem; }
+.politica-aviso p { margin: 0; font-size: .92rem; }
+.politica-documento { background: #fff; padding: clamp(1.25rem, 4vw, 2.3rem); border: 1px solid var(--borde); border-radius: 16px; box-shadow: 0 5px 18px rgba(30, 42, 50, .05); }
+.politica-seccion + .politica-seccion { margin-top: 1.7rem; padding-top: 1.7rem; border-top: 1px solid #e7eeee; }
+.politica-seccion h2 { display: flex; align-items: center; gap: .65rem; margin: 0 0 .65rem; color: #1b5e20; font-size: 1.12rem; }
+.politica-seccion h2 span { width: 26px; height: 26px; display: inline-grid; place-items: center; border-radius: 50%; color: #fff; background: var(--sivam-verde); font-size: .78rem; }
+.politica-seccion p { margin: .6rem 0 0; color: #42545a; line-height: 1.7; }
+.politica-contacto { display: flex; gap: .7rem; align-items: flex-start; padding: .9rem 1rem; margin-top: 1rem; border-radius: 10px; background: #f4f8f7; }
+.politica-contacto > i { padding-top: .25rem; color: var(--sivam-verde); }
+.politica-contacto p { margin: 0; font-size: .92rem; }
+@media (max-width: 600px) { .politica-encabezado { padding: 0 1rem; } .politica-etiqueta { display: none; } .politica-contenedor { width: min(100% - 1.25rem, 960px); margin-top: 1rem; } .politica-portada { padding: 1.3rem; gap: .85rem; } .politica-portada-icono { width: 44px; height: 44px; flex-basis: 44px; font-size: 1.2rem; } }
+
+/* Adaptación general de SIVAM para tabletas y celulares. */
+@media (max-width: 900px) {
+  .sivam-sidebar { width: 72px; }
+  .sidebar-header { justify-content: center; padding: 20px 8px; }
+  .sidebar-brand, .nav-item > span:not(.nav-icon), .logout-link > span:not(.nav-icon), .nav-arrow { display: none; }
+  .nav-item, .logout-link { justify-content: center; padding-inline: 8px; }
+  .nav-submenu { margin-left: 8px; }
+  .sidebar-footer { padding: 12px 8px; }
+  .topbar { padding-inline: 18px; }
+  .topbar-titulo { font-size: .9rem; }
+  .page-header-actions { align-items: flex-start; }
+  .tabla-contenedor, .tabla-panel { overflow-x: auto; }
+}
+
+@media (max-width: 600px) {
+  .sivam-layout { display: block; }
+  .sivam-sidebar { width: 100%; min-height: 0; display: block; }
+  .sidebar-header { display: none; }
+  .sidebar-nav { display: flex; align-items: stretch; gap: 2px; padding: 5px 8px; overflow-x: auto; }
+  .nav-item, .nav-item-toggle { width: auto; min-width: 48px; flex: 0 0 auto; padding: 12px; border-left: 0; border-bottom: 3px solid transparent; }
+  .nav-item-active { border-left-color: transparent; border-bottom-color: var(--sivam-naranja); }
+  .nav-group { margin: 0; flex: 0 0 auto; }
+  .nav-submenu { position: absolute; z-index: 10; margin: 0; min-width: 175px; }
+  .sidebar-footer { display: flex; position: absolute; top: 0; right: 4px; padding: 5px; border: 0; }
+  .sidebar-footer .logout-link { padding: 11px; }
+  .sivam-main { overflow: visible; }
+  .topbar { min-height: 58px; padding: 10px 14px; }
+  .topbar-titulo { max-width: calc(100vw - 105px); line-height: 1.25; }
+  .perfil-nombre, .perfil-flecha { display: none; }
+  .main-content { padding: 16px 12px; }
+  .page-header-actions, .ficha-acciones, .form-acciones { flex-wrap: wrap; }
+  .page-header-actions .boton-nuevo-sivam, .ficha-acciones > *, .form-acciones > * { flex: 1 1 auto; text-align: center; justify-content: center; }
+  .buscador-sivam, .lista-resultados-sivam, .ficha-sivam { padding: 16px; }
+  .buscador-fila { flex-direction: column; }
+  .buscador-fila button { width: 100%; }
+  .ficha-datos { grid-template-columns: 1fr; }
+  .tabla-pacientes { min-width: 640px; }
+  .politica-portada { flex-direction: column; }
+}
+
+/* Contraste completo del modo oscuro: se usa en todos los módulos. */
+html.tema-oscuro .sivam-main,
+html.tema-oscuro .main-content { background: #131b18; }
+html.tema-oscuro .topbar { background: #1b2721; border-color: #35473d; }
+html.tema-oscuro .topbar-titulo,
+html.tema-oscuro .perfil-nombre,
+html.tema-oscuro .page-title,
+html.tema-oscuro .ficha-sivam,
+html.tema-oscuro .lista-resultados-sivam,
+html.tema-oscuro .fila-resultado,
+html.tema-oscuro .ficha-datos dd { color: #edf5f0; }
+html.tema-oscuro .perfil-boton { background: #24332b; border-color: #40564a; }
+html.tema-oscuro .ficha-sivam,
+html.tema-oscuro .lista-resultados-sivam,
+html.tema-oscuro .fila-resultado,
+html.tema-oscuro .config-metrica,
+html.tema-oscuro .tabla-container { background: #1d2a23; border-color: #34483d; }
+html.tema-oscuro .fila-resultado:hover { background: #27372d; }
+html.tema-oscuro .tabla-pacientes { background: #1d2a23; color: #edf5f0; }
+html.tema-oscuro .tabla-pacientes tbody tr { background: #1d2a23; }
+html.tema-oscuro .tabla-pacientes tbody tr:nth-child(even) { background: #223129; }
+html.tema-oscuro .tabla-pacientes td { color: #edf5f0; border-color: #40564a; }
+html.tema-oscuro .tabla-pacientes tbody tr:hover,
+html.tema-oscuro .tabla-pacientes tbody tr:hover td { background: #2b4034; }
+html.tema-oscuro .config-metrica strong,
+html.tema-oscuro .config-item,
+html.tema-oscuro .config-accesos a { color: #edf5f0; }
+html.tema-oscuro .config-metrica div span,
+html.tema-oscuro .config-ayuda,
+html.tema-oscuro .config-accesos small { color: #b4c5ba; }
+html.tema-oscuro .config-item { border-color: #34483d; }
+html.tema-oscuro .config-accesos a:hover { background: #27392e; }
+html.tema-oscuro .config-accesos > a > i:first-child { color: #8bd59a; background: #294332; }
+html.tema-oscuro .config-link { color: #9ce2a9; }
+html.tema-oscuro .breadcrumb a { color: #9ce2a9; }
+
+/* Navegación oscura más sobria: el menú no compite con el contenido. */
+html.tema-oscuro .sivam-sidebar { background: #183126; }
+html.tema-oscuro .sidebar-header,
+html.tema-oscuro .sidebar-footer { border-color: rgba(214, 235, 219, .10); }
+html.tema-oscuro .nav-item { color: #c9d9cd; }
+html.tema-oscuro .nav-item:hover { background: rgba(255,255,255,.07); color: #fff; }
+html.tema-oscuro .nav-item-active { background: rgba(127, 219, 145, .13); border-left-color: #7fdb91; color: #fff; }
+html.tema-oscuro .nav-submenu { background: #11251b; border-color: #2a4a37; }
+html.tema-oscuro .nav-subitem { color: #c5d8ca; }
+html.tema-oscuro .nav-subitem:hover { background: #203a2b; color: #fff; }
+html.tema-oscuro .nav-subitem-active { color: #9ce2a9; }
+
+/* Gráficas del dashboard: textos luminosos sobre la superficie oscura. */
+html.tema-oscuro .grafica-header { color: #f1f8f3; }
+html.tema-oscuro .grafica-header i { color: #7fdb91; }
+html.tema-oscuro .leyenda-item { color: #d5e4d9; }
+html.tema-oscuro .leyenda-item strong { color: #ffffff; }
+html.tema-oscuro .grafica-total { color: #ffffff; }
+html.tema-oscuro .grafica-total span,
+html.tema-oscuro .grafica-vacia { color: #bcd0c2; }
+
+/* Filtro de exámenes del reporte de pendientes. */
+html.tema-oscuro .contenedor-examenes { background: #1d2a23; border: 1px solid #34483d; box-shadow: none; }
+html.tema-oscuro .contenedor-examenes .subtitulo-form { color: #f1f8f3; border-color: #40564a; }
+html.tema-oscuro .examen-checkbox { color: #edf5f0; border-color: #52675a; background: #223129; }
+html.tema-oscuro .examen-checkbox:hover { border-color: #7fdb91; background: #2b4034; }
+html.tema-oscuro .examen-checkbox input[type="checkbox"] { accent-color: #62c879; }
+
+/* =========================================================
+   CAPA FINAL DE CONTRASTE — MODO OSCURO
+   Se declara al final porque algunos módulos definen sus tarjetas y
+   formularios después de las reglas generales del tema.
+   Paleta: fondo profundo, superficie, superficie elevada e interactiva.
+   ========================================================= */
+html.tema-oscuro {
+  --fondo: #101814;
+  --superficie: #18251f;
+  --superficie-elevada: #203129;
+  --superficie-interactiva: #293d33;
+  --borde: #435b4e;
+  --tinta: #f1f7f3;
+  --tinta-suave: #b8c9bf;
+  --acento: #86dda5;
+  --acento-suave: #183d29;
+}
+
+html.tema-oscuro .form-seccion,
+html.tema-oscuro .tinetti-resultado,
+html.tema-oscuro .grafica-card,
+html.tema-oscuro .tabla-panel-sivam,
+html.tema-oscuro .buscador-sivam,
+html.tema-oscuro .info-mensaje,
+html.tema-oscuro .cronometro-caja,
+html.tema-oscuro .modal-caja {
+  background: var(--superficie);
+  border-color: var(--borde);
+  color: var(--tinta);
+}
+
+/* En modo oscuro, el formulario es una superficie oscura; las preguntas
+   mantienen el siguiente nivel visual mediante .tinetti-pregunta. */
+html.tema-oscuro .ficha-form-sivam {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .18);
+}
+html.tema-oscuro .ficha-form-sivam .campo-sivam > label {
+  color: var(--tinta-suave);
+}
+
+/* Ventanas alternativas / modales: separadas claramente del fondo. */
+html.tema-oscuro .modal-overlay { background: rgba(3, 12, 8, .78); }
+html.tema-oscuro .modal-caja { box-shadow: 0 24px 64px rgba(0, 0, 0, .48); }
+html.tema-oscuro .modal-header { border-color: var(--borde); }
+html.tema-oscuro .modal-body,
+html.tema-oscuro .modal-cerrar,
+html.tema-oscuro .ficha-modal-nombre { color: var(--tinta); }
+html.tema-oscuro .modal-cerrar:hover { color: #fff; }
+html.tema-oscuro .ficha-privacidad {
+  background: var(--superficie-interactiva);
+  border-color: var(--borde);
+  color: var(--tinta);
+}
+html.tema-oscuro .ficha-privacidad h4 { color: var(--tinta); }
+html.tema-oscuro .ficha-privacidad h4 i { color: var(--acento); }
+html.tema-oscuro .filtro-estado { background: var(--superficie); border-color: var(--borde); color: var(--tinta-suave); }
+html.tema-oscuro .filtro-estado:hover,
+html.tema-oscuro .filtro-estado.activo { background: var(--acento-suave); border-color: var(--acento); color: var(--acento); }
+html.tema-oscuro .estado-paciente-activo { background: #16452d; color: #b9f2cd; }
+html.tema-oscuro .estado-paciente-inactivo { background: #4a3917; color: #ffe09a; }
+html.tema-oscuro .boton-inactivar { border-color: #e6b84d; color: #ffe09a; }
+html.tema-oscuro .boton-inactivar:hover { background: #4a3917; }
+html.tema-oscuro .accion-inactivar:hover { background: #4a3917; border-color: #e6b84d; color: #ffe09a; }
+html.tema-oscuro .boton-reactivar { border-color: var(--acento); color: #b9f2cd; }
+html.tema-oscuro .boton-reactivar:hover,
+html.tema-oscuro .accion-reactivar:hover { background: #16452d; border-color: var(--acento); color: #b9f2cd; }
+html.tema-oscuro .modulo-mini {
+  background: var(--superficie-elevada);
+  border-color: var(--borde);
+  color: var(--tinta-suave);
+}
+html.tema-oscuro .modulo-mini-titulo { color: var(--tinta); }
+html.tema-oscuro .modulo-mini-titulo i { color: var(--acento); }
+
+/* Tarjetas y acordeones: diferenciación visible entre niveles. */
+html.tema-oscuro .dato-card,
+html.tema-oscuro .tinetti-pregunta,
+html.tema-oscuro .moca-dominio,
+html.tema-oscuro .hc-seccion {
+  background: var(--superficie-elevada);
+  border-color: var(--borde);
+  color: var(--tinta);
+  box-shadow: none;
+}
+html.tema-oscuro .dato-card:hover,
+html.tema-oscuro .tinetti-pregunta:hover {
+  background: #263a30;
+  border-color: #6d927e;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .22);
+}
+html.tema-oscuro .dato-card-icono,
+html.tema-oscuro .pendientes-icono {
+  background: #173d2a;
+  color: var(--acento);
+}
+html.tema-oscuro .dato-card-editar {
+  background: var(--superficie-interactiva);
+  border-color: var(--borde);
+  color: var(--tinta);
+}
+html.tema-oscuro .dato-card-editar:hover { background: #345142; color: #fff; }
+html.tema-oscuro .chip { background: #2b4035; color: var(--tinta); }
+
+/* Dashboard del paciente: estas reglas vencen los estilos embebidos claros. */
+html.tema-oscuro .pac-resumen,
+html.tema-oscuro .pac-gauge-card {
+  background: var(--superficie-elevada);
+  border-color: var(--borde);
+  color: var(--tinta);
+}
+html.tema-oscuro .pac-resumen-label,
+html.tema-oscuro .pac-gauge-centro small { color: var(--tinta-suave); }
+html.tema-oscuro .pac-resumen-valor,
+html.tema-oscuro .pac-gauge-head,
+html.tema-oscuro .pac-gauge-centro strong { color: var(--tinta); }
+html.tema-oscuro .pac-gauge-head i { color: var(--acento); }
+html.tema-oscuro .pac-gauge-nivel.nivel-bueno { background: #16452d; color: #b9f2cd; }
+html.tema-oscuro .pac-gauge-nivel.nivel-medio { background: #4a3917; color: #ffe09a; }
+html.tema-oscuro .pac-gauge-nivel.nivel-malo { background: #4b262b; color: #ffc4c8; }
+html.tema-oscuro .dashboard-pacientes-meta { color: var(--tinta-suave); }
+html.tema-oscuro .dashboard-inactivos-link { background: #4a3917; color: #ffe09a; }
+html.tema-oscuro .dashboard-inactivos-link:hover { background: #624a1d; }
+
+/* Formulario Tinetti: opciones distinguibles y estados semánticos legibles. */
+html.tema-oscuro .tinetti-seccion-head { border-color: var(--borde); }
+html.tema-oscuro .tinetti-seccion-head .subtitulo-form,
+html.tema-oscuro .tinetti-seccion-head .subtitulo-form i { color: var(--acento); }
+html.tema-oscuro .tinetti-res-label,
+html.tema-oscuro .tinetti-seccion-contador { color: var(--tinta-suave); }
+html.tema-oscuro .tinetti-res-valor,
+html.tema-oscuro .tinetti-seccion-contador b { color: var(--acento); }
+html.tema-oscuro .tinetti-opcion {
+  background: #1a2922;
+  border-color: #3b5447;
+}
+html.tema-oscuro .tinetti-opcion:hover { background: var(--superficie-interactiva); border-color: #719681; }
+html.tema-oscuro .tinetti-opcion-texto { color: var(--tinta); }
+html.tema-oscuro .tinetti-opcion-punto { background: #30483c; color: #d6e4dc; }
+html.tema-oscuro .tinetti-opcion:has(input:checked) {
+  background: #16452d;
+  border-color: #79d698;
+  box-shadow: 0 0 0 1px #79d698 inset;
+}
+html.tema-oscuro .tinetti-opcion:has(input:checked) .tinetti-opcion-texto { color: #e0fae8; }
+html.tema-oscuro .tinetti-opcion:has(input:checked) .tinetti-opcion-punto { background: #79d698; color: #102219; }
+html.tema-oscuro .tinetti-opcion.op-nivel-0:has(input:checked) { background: #4b262b; border-color: #ed8790; box-shadow: 0 0 0 1px #ed8790 inset; }
+html.tema-oscuro .tinetti-opcion.op-nivel-0:has(input:checked) .tinetti-opcion-texto { color: #ffd7da; }
+html.tema-oscuro .tinetti-opcion.op-nivel-0:has(input:checked) .tinetti-opcion-punto { background: #ed8790; color: #371419; }
+html.tema-oscuro .tinetti-opcion.op-nivel-1:has(input:checked):not(.op-max) { background: #4a3917; border-color: #f2c564; box-shadow: 0 0 0 1px #f2c564 inset; }
+html.tema-oscuro .tinetti-opcion.op-nivel-1:has(input:checked):not(.op-max) .tinetti-opcion-texto { color: #ffe5a9; }
+html.tema-oscuro .tinetti-opcion.op-nivel-1:has(input:checked):not(.op-max) .tinetti-opcion-punto { background: #f2c564; color: #352609; }
+
+html.tema-oscuro input,
+html.tema-oscuro select,
+html.tema-oscuro textarea { background: #111d17; border-color: #526d5d; color: var(--tinta); }
+html.tema-oscuro input:focus,
+html.tema-oscuro select:focus,
+html.tema-oscuro textarea:focus { border-color: var(--acento); box-shadow: 0 0 0 3px rgba(134, 221, 165, .18); }
+html.tema-oscuro input[type="date"] { color-scheme: dark; }
+html.tema-oscuro .hc-seccion-head { background: var(--superficie-interactiva); color: var(--tinta); }
+html.tema-oscuro .hc-modal-titulo { border-color: var(--borde); }
+html.tema-oscuro .hc-modal-titulo strong,
+html.tema-oscuro .hc-datos-lista,
+html.tema-oscuro .hc-datos-lista span { color: var(--tinta); }
+html.tema-oscuro .hc-modal-sub,
+html.tema-oscuro .hc-datos-grid span { color: var(--tinta-suave); }

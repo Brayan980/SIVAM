@@ -18,3 +18,10 @@ services:
       # Desactiva el modo debug en producción.
       - key: FLASK_DEBUG
         value: "false"
+      # Datos institucionales que se muestran en la política de privacidad.
+      - key: CONTACTO_PROTECCION_DATOS
+        sync: false
+      - key: TELEFONO_PROTECCION_DATOS
+        sync: false
+      - key: DIRECCION_PROTECCION_DATOS
+        sync: false

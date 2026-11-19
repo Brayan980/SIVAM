@@ -157,6 +157,7 @@ _MODULOS = [
         'tabla': 'test_chair_stand',
         'seccion': 'Test Chair Stand',
         'columnas': [
+            ('edad_evaluacion', 'Edad al evaluar', 'chairstand_edad_evaluacion'),
             ('resultado', 'Resultado Chair Stand', 'chairstand_resultado'),
             ('repeticiones', 'Repeticiones', 'chairstand_repeticiones'),
             ('percentil', 'Percentil', 'chairstand_percentil'),
@@ -192,7 +193,7 @@ _COLUMNAS_VISIBLES_INDIVIDUAL = {
     'vo2_max': ['resultado', 'observaciones', 'evaluador', 'fecha_examen'],
     'test_moca': ['resultado', 'observaciones', 'evaluador', 'fecha_examen'],
     'test_tinetti': ['resultado', 'observaciones', 'evaluador', 'fecha_examen'],
-    'test_chair_stand': ['resultado', 'observaciones', 'evaluador', 'fecha_examen'],
+    'test_chair_stand': ['edad_evaluacion', 'resultado', 'observaciones', 'evaluador', 'fecha_examen'],
 }
 
 # Etiquetas simplificadas para las filas visibles del individual.
@@ -465,7 +466,9 @@ def generar_excel_individual(paciente_id):
             if tabla in ('vo2_max', 'test_chair_stand'):
                 datos_grafica = dict(datos)
                 datos_grafica.setdefault('sexo', datos_hist.get('sexo'))
-                if datos_grafica.get('edad') in (None, ''):
+                if tabla == 'test_chair_stand' and datos_grafica.get('edad_evaluacion') not in (None, ''):
+                    datos_grafica['edad'] = datos_grafica['edad_evaluacion']
+                elif datos_grafica.get('edad') in (None, ''):
                     datos_grafica['edad'] = datos_hist.get('edad')
             png = graficas.GRAFICA_POR_TABLA[tabla](datos_grafica)
             if png is not None:

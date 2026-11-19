@@ -3,7 +3,7 @@
     <i class="fas fa-file-medical"></i>
     <div>
       <strong>Historia Clínica - {{ p.nombres }} {{ p.apellidos }}</strong>
-      <span class="hc-modal-sub">{{ (p.edad|int ~ ' años') if p.edad else '' }}{% if p.fecha_creacion %} | {{ p.fecha_creacion }}{% endif %}</span>
+      <span class="hc-modal-sub">{{ (p.edad|int ~ ' años') if p.edad else '' }}{% if p.fecha_creacion %} | Fecha de registro: {{ p.fecha_creacion }}{% endif %}</span>
     </div>
   </div>
 
@@ -16,9 +16,12 @@
     <div class="hc-seccion-body">
       <div class="hc-datos-grid">
         <div><span>Paciente</span><strong>{{ p.nombres }} {{ p.apellidos }}</strong></div>
-        <div><span>Edad</span><strong>{{ (p.edad|int ~ ' años') if p.edad else '-' }}</strong></div>
+        <div><span>{{ 'Edad estimada' if p.edad_es_estimada else 'Edad' }}</span><strong>{{ (p.edad|int ~ ' años') if p.edad else '-' }}</strong></div>
         <div><span>Sexo</span><strong>{{ p.sexo or '-' }}</strong></div>
         <div><span>Fecha de nacimiento</span><strong>{{ p.fecha_de_nacimiento or '-' }}</strong></div>
+        <div><span>Tipo de documento</span><strong>{{ p.tipo_documento or 'No registrado' }}</strong></div>
+        <div><span>Número de documento</span><strong>{{ p.numero_documento or 'No registrado' }}</strong></div>
+        <div><span>Teléfono</span><strong>{{ p.telefono or 'No registrado' }}</strong></div>
         <div><span>Barrio</span><strong>{{ p.barrio or '-' }}</strong></div>
         <div><span>Riesgo CV</span><strong>{{ p.riesgo_cardiovascular_con_riesgo_o_sin_riesgo or '-' }}</strong></div>
       </div>
@@ -66,7 +69,7 @@
     </button>
     <div class="hc-seccion-body">
       <div class="hc-datos-lista">
-        <div><span>Hábitos y estilo de vida:</span> {{ p.habitos_y_estilos_de_vida_alcohol_tabaco_azucares_alimentos_procesados or '-' }}</div>
+        <div><span>Hábitos y estilos de vida:</span> {{ p.habitos_y_estilos_de_vida_alcohol_tabaco_azucares_alimentos_procesados or '-' }}</div>
         <div><span>Ejercicio y actividad física:</span> {{ p.ejercicio_y_actividad_fisica_leve_moderado_intenso or '-' }}</div>
       </div>
     </div>

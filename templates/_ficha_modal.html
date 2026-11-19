@@ -1,6 +1,9 @@
 <div class="ficha-modal">
   <div class="ficha-modal-nombre">
     <strong>{{ paciente.nombres }} {{ paciente.apellidos }}</strong>
+    {% if paciente.esta_inactivo %}
+      <span class="estado-paciente estado-paciente-inactivo"><i class="fas fa-box-archive"></i> Inactivo</span>
+    {% endif %}
     {% if paciente.riesgo_cardiovascular_con_riesgo_o_sin_riesgo %}
       <span class="etiqueta-riesgo {{ 'riesgo-alto' if 'con' in paciente.riesgo_cardiovascular_con_riesgo_o_sin_riesgo|lower else 'riesgo-bajo' }}">
         {{ paciente.riesgo_cardiovascular_con_riesgo_o_sin_riesgo }}
@@ -19,6 +22,29 @@
   </dl>
   {% else %}
     <p class="vacio-ayuda">Sin datos clínicos registrados en la historia.</p>
+  {% endif %}
+
+  <section class="ficha-privacidad" aria-label="Estado de autorización de datos">
+    <h4><i class="fas fa-eye"></i> Estado de autorización</h4>
+    {% if consentimiento %}
+      <p><strong>Autorización registrada.</strong> Se conserva evidencia de la política aceptada.</p>
+      <p class="vacio-ayuda">
+        Política {{ consentimiento.version_politica }} · registrada {{ consentimiento.fecha_autorizacion }}
+        {% if consentimiento.registrado_por_nombre %} por {{ consentimiento.registrado_por_nombre }}{% endif %}.
+      </p>
+    {% elif estado_autorizacion == 'rechazada' %}
+      <p><strong>Autorización rechazada.</strong> No existe una autorización otorgada.</p>
+    {% elif estado_autorizacion == 'revocada' %}
+      <p><strong>Autorización revocada.</strong> La evidencia histórica se conserva, pero no está vigente.</p>
+    {% else %}
+      <p><strong>Sin autorización comprobable.</strong> No se encontró evidencia de autorización registrada.</p>
+    {% endif %}
+  </section>
+
+  {% if paciente.esta_inactivo %}
+    <p class="vacio-ayuda">Inactivado {{ paciente.fecha_inactivacion or '' }}{% if paciente.inactivado_por_nombre %} por {{ paciente.inactivado_por_nombre }}{% endif %}.</p>
+  {% elif paciente.fecha_reactivacion %}
+    <p class="vacio-ayuda">Reactivado {{ paciente.fecha_reactivacion }}{% if paciente.reactivado_por_nombre %} por {{ paciente.reactivado_por_nombre }}{% endif %}.</p>
   {% endif %}
 
   <h4 class="subtitulo-form">Datos de módulos</h4>
@@ -66,6 +92,8 @@
 
   <div class="ficha-modal-pie">
     <a class="boton-secundario" href="/?id={{ paciente.id }}">Ver ficha completa</a>
-    <a class="boton-secundario" href="/editar/{{ paciente.id }}">Editar</a>
+    {% if not paciente.esta_inactivo %}
+      <a class="boton-secundario" href="/editar/{{ paciente.id }}">Editar</a>
+    {% endif %}
   </div>
 </div>

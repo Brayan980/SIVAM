@@ -101,6 +101,10 @@ def conectar():
         import psycopg2
         return psycopg2.connect(DATABASE_URL)
 
-    conn = sqlite3.connect(DB_PATH)
+    # SQLite permite una sola escritura simultánea. En uso local, otra petición
+    # breve o una herramienta de respaldo puede sostener el bloqueo; esperar
+    # evita fallar de inmediato sin ocultar errores reales.
+    conn = sqlite3.connect(DB_PATH, timeout=15)
+    conn.execute('PRAGMA busy_timeout = 15000')
     conn.execute('PRAGMA foreign_keys = ON')
     return _ConexionCompat(conn)

@@ -54,6 +54,7 @@
 </div>
 
 <form method="post" class="ficha-form-sivam" id="form-tinetti">
+  <input type="hidden" name="volver_url" value="{{ volver_url }}">
   <div class="campo-sivam">
     <label for="fecha_examen">Fecha del examen</label>
     <input type="date" id="fecha_examen" name="fecha_examen" value="{{ valores.get('fecha_examen') or '' }}">

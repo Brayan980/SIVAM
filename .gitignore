@@ -1,5 +1,7 @@
 # Entorno / secretos
 .env
+.env.*
+!.env.example
 .venv/
 venv/
 

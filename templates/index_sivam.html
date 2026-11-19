@@ -13,9 +13,15 @@
     <a class="boton-nuevo-sivam" href="/nuevo">+ Agregar paciente</a>
   </div>
   <p class="page-subtitle">Búsqueda y gestión de historias clínicas</p>
+  <nav class="filtros-estado" aria-label="Estado de pacientes">
+    <a class="filtro-estado {{ 'activo' if estado == 'activos' else '' }}" href="{{ url_for('index', q=query or none, estado='activos') }}">Activos</a>
+    <a class="filtro-estado {{ 'activo' if estado == 'inactivos' else '' }}" href="{{ url_for('index', q=query or none, estado='inactivos') }}">Inactivos</a>
+    <a class="filtro-estado {{ 'activo' if estado == 'todos' else '' }}" href="{{ url_for('index', q=query or none, estado='todos') }}">Todos</a>
+  </nav>
 </div>
 
 <form class="buscador-sivam" method="get" action="/">
+  <input type="hidden" name="estado" value="{{ estado }}">
   <label for="q" class="buscador-etiqueta">Nombre o apellido del paciente</label>
   <div class="buscador-fila">
     <input
@@ -36,6 +42,9 @@
   <section class="ficha-sivam">
     <div class="ficha-header">
       <h1>{{ paciente.nombres }} {{ paciente.apellidos }}</h1>
+      {% if paciente.esta_inactivo %}
+        <span class="estado-paciente estado-paciente-inactivo"><i class="fas fa-box-archive"></i> Inactivo</span>
+      {% endif %}
       {% if paciente.riesgo_cardiovascular_con_riesgo_o_sin_riesgo %}
         <span class="etiqueta-riesgo {{ 'riesgo-alto' if 'con' in paciente.riesgo_cardiovascular_con_riesgo_o_sin_riesgo|lower else 'riesgo-bajo' }}">
           {{ paciente.riesgo_cardiovascular_con_riesgo_o_sin_riesgo }}
@@ -54,12 +63,26 @@
 
     <div class="ficha-pie">
       <div class="ficha-acciones">
-        <a class="boton-nuevo-sivam" href="/paciente/{{ paciente.id }}/dashboard"><i class="fas fa-chart-pie"></i> Ver Dashboard</a>
-        <a class="boton-secundario" href="/editar/{{ paciente.id }}">Editar</a>
-        <form method="post" action="/eliminar/{{ paciente.id }}"
-              onsubmit="return confirm('¿Eliminar a {{ paciente.nombres }} {{ paciente.apellidos }}? Esta acción no se puede deshacer.');">
-          <button type="submit" class="boton-peligro">Eliminar</button>
-        </form>
+        <a class="boton-nuevo-sivam" href="/paciente/{{ paciente.id }}/dashboard"><i class="fas fa-chart-pie"></i> Ver Resumen</a>
+        {% if paciente.esta_inactivo %}
+          <button type="button" class="boton-reactivar"
+                  onclick="confirmarReactivacion({{ paciente.id }}, '{{ (paciente.nombres ~ ' ' ~ paciente.apellidos)|e }}')"><i class="fas fa-rotate-left"></i> Reactivar</button>
+          <span class="vacio-ayuda">Inactivado {{ paciente.fecha_inactivacion or '' }}{% if paciente.inactivado_por_nombre %} por {{ paciente.inactivado_por_nombre }}{% endif %}. Se conserva para consulta.</span>
+        {% else %}
+          <a class="boton-secundario" href="/editar/{{ paciente.id }}?origen=pacientes">Editar</a>
+          {% if paciente.eliminacion_bloqueada %}
+            <form method="post" action="/pacientes/{{ paciente.id }}/inactivar"
+                  onsubmit="return confirm('¿Inactivar a {{ paciente.nombres }} {{ paciente.apellidos }}? Se retirará de la operación diaria, pero su historia y la evidencia de autorización se conservarán.');">
+              <button type="submit" class="boton-inactivar"><i class="fas fa-box-archive"></i> Inactivar</button>
+            </form>
+            <span class="vacio-ayuda">Tiene una autorización registrada. Usa el icono de ojo para consultar su evidencia.</span>
+          {% else %}
+            <form method="post" action="/eliminar/{{ paciente.id }}"
+                  onsubmit="return confirm('¿Eliminar a {{ paciente.nombres }} {{ paciente.apellidos }}? Esta acción no se puede deshacer.');">
+              <button type="submit" class="boton-peligro">Eliminar</button>
+            </form>
+          {% endif %}
+        {% endif %}
       </div>
     </div>
 
@@ -77,12 +100,13 @@
       ('caracterizacion', 'caracterizacion', 'fa-home', 'Caracterización')
     ] %}
 
+    {% if not paciente.esta_inactivo %}
     <div class="ficha-modulos">
       <h3 class="subtitulo-form">Módulos disponibles</h3>
       <div class="modulos-grid">
         {% for clave, modulo, icono, etiqueta in modulos_disponibles %}
           {% set tiene_registro = paciente.get(clave) %}
-          <a href="/registrar_modulo/{{ modulo }}/{{ paciente.id }}"
+          <a href="/registrar_modulo/{{ modulo }}/{{ paciente.id }}?origen=pacientes"
              class="modulo-card {{ 'modulo-card-registrado' if tiene_registro else '' }}"
              title="{{ 'Editar ' ~ etiqueta if tiene_registro else 'Registrar ' ~ etiqueta }}">
             <i class="fas {{ icono }}"></i>
@@ -94,6 +118,9 @@
         {% endfor %}
       </div>
     </div>
+    {% else %}
+      <div class="info-mensaje"><i class="fas fa-box-archive"></i> Este paciente está inactivo y no puede recibir nuevas evaluaciones.</div>
+    {% endif %}
 
     {# --- Módulos existentes del paciente: solo se muestran los realizados --- #}
     {% set total_realizados = ['antropometria','vo2_max','test_moca','test_tinetti','test_chair_stand','caracterizacion']
@@ -114,7 +141,7 @@
             <div class="dato-card-head">
               <span class="dato-card-icono"><i class="fas fa-ruler-vertical"></i></span>
               <h4>Antropometría</h4>
-              <a href="/registrar_modulo/antropometria/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+              <a href="/registrar_modulo/antropometria/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
               <span class="chip">{{ paciente.antropometria.peso }} kg</span>
@@ -129,7 +156,7 @@
             <div class="dato-card-head">
               <span class="dato-card-icono"><i class="fas fa-heartbeat"></i></span>
               <h4>VO2 Max</h4>
-              <a href="/registrar_modulo/vo2_max/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+              <a href="/registrar_modulo/vo2_max/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
               <span class="chip">{{ paciente.vo2_max.vo2_max }} ml/kg/min</span>
@@ -143,7 +170,7 @@
             <div class="dato-card-head">
               <span class="dato-card-icono"><i class="fas fa-brain"></i></span>
               <h4>Test MoCA</h4>
-              <a href="/registrar_modulo/test_moca/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+              <a href="/registrar_modulo/test_moca/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
               <span class="chip chip-destacado">{{ paciente.test_moca.resultado }}</span>
@@ -156,7 +183,7 @@
             <div class="dato-card-head">
               <span class="dato-card-icono"><i class="fas fa-walking"></i></span>
               <h4>Test Tinetti</h4>
-              <a href="/registrar_modulo/test_tinetti/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+              <a href="/registrar_modulo/test_tinetti/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
               <span class="chip chip-destacado">{{ paciente.test_tinetti.resultado }}</span>
@@ -169,7 +196,7 @@
             <div class="dato-card-head">
               <span class="dato-card-icono"><i class="fas fa-chair"></i></span>
               <h4>Test Chair Stand</h4>
-              <a href="/registrar_modulo/test_chair_stand/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+              <a href="/registrar_modulo/test_chair_stand/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
               <span class="chip chip-destacado">{{ paciente.test_chair_stand.resultado }}</span>
@@ -182,7 +209,7 @@
             <div class="dato-card-head">
               <span class="dato-card-icono"><i class="fas fa-house-user"></i></span>
               <h4>Caracterización</h4>
-              <a href="/registrar_modulo/caracterizacion/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+              <a href="/registrar_modulo/caracterizacion/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
               {% if paciente.caracterizacion.escolaridad %}<span class="chip">{{ paciente.caracterizacion.escolaridad }}</span>{% endif %}
@@ -205,7 +232,7 @@
 {# --- Caso 2: listado de pacientes (con o sin filtro) en tabla --- #}
 {% elif resultados %}
   <section class="tabla-panel-sivam">
-    <h2 class="tabla-panel-titulo"><i class="fas fa-users"></i> Pacientes Registrados ({{ total_registros }})</h2>
+    <h2 class="tabla-panel-titulo"><i class="fas fa-users"></i> Pacientes {{ 'Inactivos' if estado == 'inactivos' else 'Registrados' }} ({{ total_registros }})</h2>
     <div class="tabla-container">
       <table class="tabla-pacientes">
         <thead>
@@ -215,6 +242,7 @@
             <th>Edad</th>
             <th>Sexo</th>
             <th>Barrio</th>
+            <th>Estado</th>
             <th class="col-acciones">Acciones</th>
           </tr>
         </thead>
@@ -226,15 +254,32 @@
             <td>{{ (r.edad|int ~ ' años') if r.edad else '-' }}</td>
             <td>{{ r.sexo if r.sexo else '-' }}</td>
             <td>{{ r.barrio if r.barrio else '-' }}</td>
+            <td>
+              {% if r.esta_inactivo %}
+                <span class="estado-paciente estado-paciente-inactivo" title="Inactivado {{ r.fecha_inactivacion or '' }}{% if r.inactivado_por_nombre %} por {{ r.inactivado_por_nombre }}{% endif %}"><i class="fas fa-box-archive"></i> Inactivo</span>
+              {% else %}
+                <span class="estado-paciente estado-paciente-activo"><i class="fas fa-circle-check"></i> Activo</span>
+              {% endif %}
+            </td>
             <td class="col-acciones">
               <button type="button" class="accion-btn accion-ver"
                       title="Ver ficha"
                       onclick="verPaciente({{ r.id }})"><i class="fas fa-eye"></i></button>
-              <a class="accion-btn accion-editar" title="Editar"
-                 href="/editar/{{ r.id }}"><i class="fas fa-pen"></i></a>
-              <button type="button" class="accion-btn accion-eliminar"
-                      title="Eliminar"
-                      onclick="confirmarEliminar({{ r.id }}, '{{ (r.nombres ~ ' ' ~ r.apellidos)|e }}')"><i class="fas fa-trash"></i></button>
+              {% if not r.esta_inactivo %}
+                <a class="accion-btn accion-editar" title="Editar"
+                   href="/editar/{{ r.id }}?origen=pacientes"><i class="fas fa-pen"></i></a>
+                {% if r.eliminacion_bloqueada %}
+                  <button type="button" class="accion-btn accion-inactivar" title="Inactivar"
+                          onclick="confirmarInactivar({{ r.id }}, '{{ (r.nombres ~ ' ' ~ r.apellidos)|e }}')"><i class="fas fa-box-archive"></i></button>
+                {% else %}
+                  <button type="button" class="accion-btn accion-eliminar"
+                          title="Eliminar"
+                          onclick="confirmarEliminar({{ r.id }}, '{{ (r.nombres ~ ' ' ~ r.apellidos)|e }}', false)"><i class="fas fa-trash"></i></button>
+                {% endif %}
+              {% else %}
+                <button type="button" class="accion-btn accion-reactivar" title="Reactivar"
+                        onclick="confirmarReactivacion({{ r.id }}, '{{ (r.nombres ~ ' ' ~ r.apellidos)|e }}')"><i class="fas fa-rotate-left"></i></button>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}
@@ -245,13 +290,13 @@
     {% if total_paginas > 1 %}
     <div class="paginacion-sivam">
       {% if pagina > 1 %}
-        <a href="{{ url_for('index', pagina=pagina - 1, q=query or none) }}" class="pag-btn">&laquo; Anterior</a>
+        <a href="{{ url_for('index', pagina=pagina - 1, q=query or none, estado=estado) }}" class="pag-btn">&laquo; Anterior</a>
       {% else %}
         <span class="pag-btn pag-disabled">&laquo; Anterior</span>
       {% endif %}
       <span class="pag-info">Página {{ pagina }} de {{ total_paginas }}</span>
       {% if pagina < total_paginas %}
-        <a href="{{ url_for('index', pagina=pagina + 1, q=query or none) }}" class="pag-btn">Siguiente &raquo;</a>
+        <a href="{{ url_for('index', pagina=pagina + 1, q=query or none, estado=estado) }}" class="pag-btn">Siguiente &raquo;</a>
       {% else %}
         <span class="pag-btn pag-disabled">Siguiente &raquo;</span>
       {% endif %}
@@ -266,6 +311,46 @@
     <p class="vacio-ayuda">Revisa la ortografía o intenta solo con el apellido.</p>
   </section>
 {% endif %}
+
+<!-- Modal de confirmación de inactivación -->
+<div class="modal-overlay" id="modal-inactivar" onclick="cerrarInactivarSiFondo(event)">
+  <div class="modal-caja modal-caja-chica">
+    <div class="modal-header">
+      <h3>Inactivar paciente</h3>
+      <button type="button" class="modal-cerrar" onclick="cerrarInactivar()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="inactivar-texto">¿Inactivar este paciente?</p>
+      <p class="vacio-ayuda">No se eliminarán la historia clínica, las evaluaciones ni la evidencia de autorización. El paciente dejará de aparecer en la operación diaria y podrá consultarse desde “Inactivos”.</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="boton-secundario" onclick="cerrarInactivar()">Cancelar</button>
+      <form method="post" id="form-inactivar">
+        <button type="submit" class="boton-inactivar"><i class="fas fa-box-archive"></i> Inactivar</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de confirmación de reactivación -->
+<div class="modal-overlay" id="modal-reactivar" onclick="cerrarReactivarSiFondo(event)">
+  <div class="modal-caja modal-caja-chica">
+    <div class="modal-header">
+      <h3>Reactivar paciente</h3>
+      <button type="button" class="modal-cerrar" onclick="cerrarReactivar()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="reactivar-texto">¿Reactivar este paciente?</p>
+      <p class="vacio-ayuda">El paciente volverá a estar disponible para atención y nuevas evaluaciones. Se conservará la trazabilidad de la inactivación y de esta reactivación.</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="boton-secundario" onclick="cerrarReactivar()">Cancelar</button>
+      <form method="post" id="form-reactivar">
+        <button type="submit" class="boton-reactivar"><i class="fas fa-rotate-left"></i> Reactivar</button>
+      </form>
+    </div>
+  </div>
+</div>
 
 <!-- Modal de ficha del paciente (ventana emergente) -->
 <div class="modal-overlay" id="modal-ficha" onclick="cerrarModalSiFondo(event)">
@@ -284,12 +369,12 @@
 <div class="modal-overlay" id="modal-eliminar" onclick="cerrarEliminarSiFondo(event)">
   <div class="modal-caja modal-caja-chica">
     <div class="modal-header">
-      <h3>Confirmar eliminación</h3>
+      <h3 id="eliminar-titulo">Confirmar eliminación</h3>
       <button type="button" class="modal-cerrar" onclick="cerrarEliminar()">&times;</button>
     </div>
     <div class="modal-body">
       <p id="eliminar-texto">¿Eliminar este paciente?</p>
-      <p class="vacio-ayuda">Esta acción no se puede deshacer.</p>
+      <p class="vacio-ayuda" id="eliminar-ayuda">Esta acción no se puede deshacer.</p>
     </div>
     <div class="modal-footer">
       <button type="button" class="boton-secundario" onclick="cerrarEliminar()">Cancelar</button>
@@ -320,9 +405,23 @@
     if (e.target.id === 'modal-ficha') cerrarModal();
   }
 
-  function confirmarEliminar(id, nombre) {
-    document.getElementById('eliminar-texto').textContent = '¿Eliminar a ' + nombre + '?';
-    document.getElementById('form-eliminar').action = '/eliminar/' + id;
+  function confirmarEliminar(id, nombre, bloqueada) {
+    const titulo = document.getElementById('eliminar-titulo');
+    const texto = document.getElementById('eliminar-texto');
+    const ayuda = document.getElementById('eliminar-ayuda');
+    const form = document.getElementById('form-eliminar');
+    if (bloqueada) {
+      titulo.textContent = 'Eliminación no disponible';
+      texto.textContent = 'No se puede eliminar a ' + nombre + '.';
+      ayuda.textContent = 'El paciente conserva una autorización de tratamiento de datos registrada. SIVAM protege esta evidencia y no la elimina automáticamente.';
+      form.style.display = 'none';
+    } else {
+      titulo.textContent = 'Confirmar eliminación';
+      texto.textContent = '¿Eliminar a ' + nombre + '?';
+      ayuda.textContent = 'Esta acción no se puede deshacer.';
+      form.action = '/eliminar/' + id;
+      form.style.display = '';
+    }
     document.getElementById('modal-eliminar').classList.add('abierto');
   }
   function cerrarEliminar() {
@@ -332,8 +431,32 @@
     if (e.target.id === 'modal-eliminar') cerrarEliminar();
   }
 
+  function confirmarInactivar(id, nombre) {
+    document.getElementById('inactivar-texto').textContent = '¿Inactivar a ' + nombre + '?';
+    document.getElementById('form-inactivar').action = '/pacientes/' + id + '/inactivar';
+    document.getElementById('modal-inactivar').classList.add('abierto');
+  }
+  function cerrarInactivar() {
+    document.getElementById('modal-inactivar').classList.remove('abierto');
+  }
+  function cerrarInactivarSiFondo(e) {
+    if (e.target.id === 'modal-inactivar') cerrarInactivar();
+  }
+
+  function confirmarReactivacion(id, nombre) {
+    document.getElementById('reactivar-texto').textContent = '¿Reactivar a ' + nombre + '?';
+    document.getElementById('form-reactivar').action = '/pacientes/' + id + '/reactivar';
+    document.getElementById('modal-reactivar').classList.add('abierto');
+  }
+  function cerrarReactivar() {
+    document.getElementById('modal-reactivar').classList.remove('abierto');
+  }
+  function cerrarReactivarSiFondo(e) {
+    if (e.target.id === 'modal-reactivar') cerrarReactivar();
+  }
+
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') { cerrarModal(); cerrarEliminar(); }
+    if (e.key === 'Escape') { cerrarModal(); cerrarEliminar(); cerrarInactivar(); cerrarReactivar(); }
   });
 </script>
 {% endblock %}
