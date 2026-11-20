@@ -107,7 +107,6 @@
         {% for clave, modulo, icono, etiqueta in modulos_disponibles %}
           {% set tiene_registro = paciente.get(clave) %}
           <a href="/registrar_modulo/{{ modulo }}/{{ paciente.id }}?origen=pacientes"
-          <a href="/registrar_modulo/{{ modulo }}/{{ paciente.id }}?origen=pacientes"
              class="modulo-card {{ 'modulo-card-registrado' if tiene_registro else '' }}"
              title="{{ 'Editar ' ~ etiqueta if tiene_registro else 'Registrar ' ~ etiqueta }}">
             <i class="fas {{ icono }}"></i>
@@ -143,7 +142,6 @@
               <span class="dato-card-icono"><i class="fas fa-ruler-vertical"></i></span>
               <h4>Antropometría</h4>
               <a href="/registrar_modulo/antropometria/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
-              <a href="/registrar_modulo/antropometria/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
               <span class="chip">{{ paciente.antropometria.peso }} kg</span>
@@ -159,7 +157,6 @@
               <span class="dato-card-icono"><i class="fas fa-heartbeat"></i></span>
               <h4>VO2 Max</h4>
               <a href="/registrar_modulo/vo2_max/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
-              <a href="/registrar_modulo/vo2_max/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
               <span class="chip">{{ paciente.vo2_max.vo2_max }} ml/kg/min</span>
@@ -174,7 +171,6 @@
               <span class="dato-card-icono"><i class="fas fa-brain"></i></span>
               <h4>Test MoCA</h4>
               <a href="/registrar_modulo/test_moca/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
-              <a href="/registrar_modulo/test_moca/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
               <span class="chip chip-destacado">{{ paciente.test_moca.resultado }}</span>
@@ -187,7 +183,6 @@
             <div class="dato-card-head">
               <span class="dato-card-icono"><i class="fas fa-walking"></i></span>
               <h4>Test Tinetti</h4>
-              <a href="/registrar_modulo/test_tinetti/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
               <a href="/registrar_modulo/test_tinetti/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
@@ -202,7 +197,6 @@
               <span class="dato-card-icono"><i class="fas fa-chair"></i></span>
               <h4>Test Chair Stand</h4>
               <a href="/registrar_modulo/test_chair_stand/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
-              <a href="/registrar_modulo/test_chair_stand/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
               <span class="chip chip-destacado">{{ paciente.test_chair_stand.resultado }}</span>
@@ -215,7 +209,6 @@
             <div class="dato-card-head">
               <span class="dato-card-icono"><i class="fas fa-house-user"></i></span>
               <h4>Caracterización</h4>
-              <a href="/registrar_modulo/caracterizacion/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
               <a href="/registrar_modulo/caracterizacion/{{ paciente.id }}?origen=pacientes" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
             </div>
             <div class="dato-card-chips">
