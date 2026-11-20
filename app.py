@@ -1332,26 +1332,32 @@ def reporte_pendientes():
     )
 
 
+
 @app.route('/configuracion')
 @login_required
 def configuracion():
     """Página de configuración del sistema."""
     conexion = conectar()
     cursor = conexion.cursor()
+
     cursor.execute('SELECT COUNT(*) FROM pacientes')
     total_pacientes = cursor.fetchone()[0]
+
     cursor.execute('SELECT COUNT(DISTINCT paciente_id) FROM test_moca')
     total_moca = cursor.fetchone()[0]
+
     total_evaluaciones = 0
-    for tabla in ('antropometria', 'vo2_max', 'test_moca', 'test_tinetti',
-                  'test_chair_stand', 'caracterizacion_socioeconomica'):
+    for tabla in (
+        'antropometria',
+        'vo2_max',
+        'test_moca',
+        'test_tinetti',
+        'test_chair_stand',
+        'caracterizacion_socioeconomica'
+    ):
         cursor.execute(f'SELECT COUNT(*) FROM {tabla}')
         total_evaluaciones += cursor.fetchone()[0]
-    total_evaluaciones = 0
-    for tabla in ('antropometria', 'vo2_max', 'test_moca', 'test_tinetti',
-                  'test_chair_stand', 'caracterizacion_socioeconomica'):
-        cursor.execute(f'SELECT COUNT(*) FROM {tabla}')
-        total_evaluaciones += cursor.fetchone()[0]
+
     conexion.close()
 
     usuario = getattr(current_user, 'usuario', None)
@@ -1364,11 +1370,10 @@ def configuracion():
         total_moca=total_moca,
         total_evaluaciones=total_evaluaciones,
         tipo_base='PostgreSQL / Supabase' if os.getenv('DATABASE_URL') else 'SQLite (local)',
-        total_evaluaciones=total_evaluaciones,
-        tipo_base='PostgreSQL / Supabase' if os.getenv('DATABASE_URL') else 'SQLite (local)',
         usuario=usuario,
         rol=rol,
     )
+
 @app.route('/dashboard')
 @login_required
 def dashboard():
