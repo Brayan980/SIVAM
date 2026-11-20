@@ -113,6 +113,17 @@ def health():
     return 'ok', 200
 
 
+@app.route('/health')
+def health():
+    """Endpoint ligero para monitoreo (UptimeRobot, cron-job, etc.).
+
+    No requiere login ni consulta la base de datos, así que responde de
+    inmediato. Sirve para hacer 'ping' periódico y evitar que Render
+    duerma el servicio (cold start) en el plan gratuito.
+    """
+    return 'ok', 200
+
+
 class User(UserMixin):
     def __init__(self, user_id, usuario, rol):
         self.id = user_id
@@ -209,6 +220,13 @@ def usuarios_lista():
     columnas = [desc[0] for desc in cursor.description]
     conexion.close()
     usuarios = [dict(zip(columnas, f)) for f in filas]
+    # Normalizar fecha_creacion a texto: en PostgreSQL viene como datetime
+    # y en SQLite como string ISO. El template espera poder cortar los
+    # primeros 10 caracteres (YYYY-MM-DD).
+    for u in usuarios:
+        fecha = u.get('fecha_creacion')
+        if fecha is not None and not isinstance(fecha, str):
+            u['fecha_creacion'] = fecha.isoformat()
     # Normalizar fecha_creacion a texto: en PostgreSQL viene como datetime
     # y en SQLite como string ISO. El template espera poder cortar los
     # primeros 10 caracteres (YYYY-MM-DD).
@@ -326,6 +344,13 @@ def usuarios_eliminar(user_id):
     conexion.close()
     flash('Usuario eliminado.', 'ok')
     return redirect(url_for('usuarios_lista'))
+
+
+@app.route('/pacientes')
+@login_required
+def pacientes():
+    """Alias limpio para la lista de pacientes, sin heredar parámetros."""
+    return redirect(url_for('index'))
 
 
 @app.route('/pacientes')
@@ -942,8 +967,20 @@ def editar(paciente_id):
             # Volver al origen guardado en el form hidden, o al dashboard del paciente
             volver = request.form.get('volver_url') or url_for('dashboard_paciente', paciente_id=paciente_id)
             return redirect(volver)
+            # Volver al origen guardado en el form hidden, o al dashboard del paciente
+            volver = request.form.get('volver_url') or url_for('dashboard_paciente', paciente_id=paciente_id)
+            return redirect(volver)
 
     conexion.close()
+
+    # Determinar destino del botón Volver según origen
+    origen = request.args.get('origen', '')
+    if origen == 'lista':
+        volver_url = url_for('historia_clinica')
+    elif origen == 'pacientes':
+        volver_url = url_for('index')
+    else:
+        volver_url = url_for('dashboard_paciente', paciente_id=paciente_id)
 
     # Determinar destino del botón Volver según origen
     origen = request.args.get('origen', '')
@@ -1310,6 +1347,11 @@ def configuracion():
                   'test_chair_stand', 'caracterizacion_socioeconomica'):
         cursor.execute(f'SELECT COUNT(*) FROM {tabla}')
         total_evaluaciones += cursor.fetchone()[0]
+    total_evaluaciones = 0
+    for tabla in ('antropometria', 'vo2_max', 'test_moca', 'test_tinetti',
+                  'test_chair_stand', 'caracterizacion_socioeconomica'):
+        cursor.execute(f'SELECT COUNT(*) FROM {tabla}')
+        total_evaluaciones += cursor.fetchone()[0]
     conexion.close()
 
     usuario = getattr(current_user, 'usuario', None)
@@ -1320,6 +1362,8 @@ def configuracion():
         version='1.0.0',
         total_pacientes=total_pacientes,
         total_moca=total_moca,
+        total_evaluaciones=total_evaluaciones,
+        tipo_base='PostgreSQL / Supabase' if os.getenv('DATABASE_URL') else 'SQLite (local)',
         total_evaluaciones=total_evaluaciones,
         tipo_base='PostgreSQL / Supabase' if os.getenv('DATABASE_URL') else 'SQLite (local)',
         usuario=usuario,
@@ -1594,6 +1638,13 @@ def registrar_modulo(modulo, paciente_id):
       - 'lista' (o cualquier otro valor) → volver a la lista del módulo
     Por defecto, si no se indica, se vuelve a la lista del módulo.
     """
+    """Fija el paciente en sesión y redirige al formulario del módulo.
+
+    El parámetro opcional ?origen= indica desde dónde se llegó:
+      - 'dashboard' → volver al dashboard del paciente
+      - 'lista' (o cualquier otro valor) → volver a la lista del módulo
+    Por defecto, si no se indica, se vuelve a la lista del módulo.
+    """
     from flask import session
     modulos_validos = {
         'antropometria': 'antropometria_formulario',
@@ -1602,6 +1653,15 @@ def registrar_modulo(modulo, paciente_id):
         'test_tinetti': 'test_tinetti_formulario',
         'test_chair_stand': 'test_chair_stand_formulario',
         'caracterizacion': 'caracterizacion_socioeconomica',
+    }
+    # Rutas de lista por módulo (para volver a la lista correspondiente)
+    listas_modulos = {
+        'antropometria': 'antropometria',
+        'vo2_max': 'vo2_max',
+        'test_moca': 'test_moca',
+        'test_tinetti': 'test_tinetti',
+        'test_chair_stand': 'test_chair_stand',
+        'caracterizacion': 'caracterizacion',
     }
     # Rutas de lista por módulo (para volver a la lista correspondiente)
     listas_modulos = {
@@ -1634,6 +1694,7 @@ def registrar_modulo(modulo, paciente_id):
         volver = url_for(lista_route) if lista_route else url_for('index')
 
     session['paciente_seleccionado_id'] = paciente_id
+    session['volver_formulario_url'] = volver
     session['volver_formulario_url'] = volver
     return redirect(url_for(destino))
 
@@ -1785,9 +1846,12 @@ def antropometria_formulario():
         conexion.close()
         volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('antropometria')
         return redirect(volver)
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('antropometria')
+        return redirect(volver)
 
     conexion.close()
 
+    volver_url = session.pop('volver_formulario_url', None) or url_for('antropometria')
     volver_url = session.pop('volver_formulario_url', None) or url_for('antropometria')
 
     return render_template(
@@ -1946,9 +2010,12 @@ def vo2_max_formulario():
         conexion.close()
         volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('vo2_max')
         return redirect(volver)
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('vo2_max')
+        return redirect(volver)
 
     conexion.close()
 
+    volver_url = session.pop('volver_formulario_url', None) or url_for('vo2_max')
     volver_url = session.pop('volver_formulario_url', None) or url_for('vo2_max')
 
     return render_template('vo2_max.html', paciente=paciente_dict, valores=valores,
@@ -2145,9 +2212,12 @@ def test_moca_formulario():
         conexion.close()
         volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('test_moca')
         return redirect(volver)
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('test_moca')
+        return redirect(volver)
 
     conexion.close()
 
+    volver_url = session.pop('volver_formulario_url', None) or url_for('test_moca')
     volver_url = session.pop('volver_formulario_url', None) or url_for('test_moca')
     return render_template('test_moca.html', paciente=paciente_dict, valores=valores,
                            existe=bool(test_existente), volver_url=volver_url)
@@ -2327,9 +2397,12 @@ def test_tinetti_formulario():
         conexion.close()
         volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('test_tinetti')
         return redirect(volver)
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('test_tinetti')
+        return redirect(volver)
 
     conexion.close()
 
+    volver_url = session.pop('volver_formulario_url', None) or url_for('test_tinetti')
     volver_url = session.pop('volver_formulario_url', None) or url_for('test_tinetti')
     return render_template('test_tinetti.html', paciente=paciente_dict, valores=valores,
                            existe=bool(test_existente), volver_url=volver_url)
@@ -2491,9 +2564,12 @@ def test_chair_stand_formulario():
         conexion.close()
         volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('test_chair_stand')
         return redirect(volver)
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('test_chair_stand')
+        return redirect(volver)
 
     conexion.close()
 
+    volver_url = session.pop('volver_formulario_url', None) or url_for('test_chair_stand')
     volver_url = session.pop('volver_formulario_url', None) or url_for('test_chair_stand')
     return render_template('test_chair_stand.html', paciente=paciente_dict, valores=valores,
                            existe=bool(test_existente), volver_url=volver_url)
@@ -2615,9 +2691,12 @@ def caracterizacion_socioeconomica():
         conexion.close()
         volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('caracterizacion')
         return redirect(volver)
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('caracterizacion')
+        return redirect(volver)
 
     conexion.close()
 
+    volver_url = session.pop('volver_formulario_url', None) or url_for('caracterizacion')
     volver_url = session.pop('volver_formulario_url', None) or url_for('caracterizacion')
     return render_template('caracterizacion_socioeconomica.html', paciente=paciente_dict, valores=valores,
                            existe=bool(caract_existente), volver_url=volver_url)

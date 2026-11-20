@@ -17,6 +17,7 @@
 
 {% if modo == 'editar' %}
   <a class="volver-sivam" href="{{ volver_url or '/historia_clinica' }}">&larr; Volver</a>
+  <a class="volver-sivam" href="{{ volver_url or '/historia_clinica' }}">&larr; Volver</a>
 {% else %}
   <a class="volver-sivam" href="/historia_clinica">&larr; Volver</a>
 {% endif %}
@@ -28,6 +29,7 @@
 {% endif %}
 
 <form method="post" class="hc-form" action="{{ '/editar/' ~ paciente_id if modo == 'editar' else '/nuevo' }}">
+  <input type="hidden" name="volver_url" value="{{ volver_url or '' }}">
   <input type="hidden" name="volver_url" value="{{ volver_url or '' }}">
 
   {# ===== Datos del Paciente ===== #}
