@@ -68,7 +68,7 @@
             <a class="accion-btn accion-editar" title="Editar"
                href="/editar/{{ r.id }}?origen=lista"><i class="fas fa-pen"></i></a>
             <a class="accion-btn accion-exportar" title="Exportar este paciente a Excel"
-               href="/exportar_paciente/{{ r.id }}"><i class="fas fa-file-excel"></i></a>
+               href="/exportar_paciente/{{ r.id }}" data-sivam-sin-loader><i class="fas fa-file-excel"></i></a>
           </td>
         </tr>
         {% endfor %}
