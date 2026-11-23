@@ -72,7 +72,7 @@
       <div class="campo-sivam">
         <label for="evaluador">Evaluador</label>
         <input type="text" id="evaluador" name="evaluador" placeholder="Nombre del evaluador"
-               value="{{ valores.get('evaluador') or evaluador_default }}" required>
+               value="{{ evaluador_default or valores.get('evaluador') }}" required>
       </div>
       <div class="campo-sivam">
         <label for="fecha_examen">Fecha del examen</label>

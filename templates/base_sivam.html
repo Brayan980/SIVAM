@@ -207,6 +207,7 @@
         if (!href || href.startsWith('#')) return;
         if (enlace.target === '_blank') return;
         if (enlace.hasAttribute('download')) return;
+        if (enlace.hasAttribute('data-sivam-sin-loader')) return;
         if (href.startsWith('javascript:')) return;
         // Solo rutas internas del mismo sitio.
         if (enlace.host && enlace.host !== window.location.host) return;
