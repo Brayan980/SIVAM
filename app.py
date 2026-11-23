@@ -21,19 +21,32 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'clave-secreta-para-sesiones')
 
-# Ejecutar migraciones SQL pendientes al arrancar (solo en producción con Postgres)
+# Aplicar columnas faltantes al arrancar en producción (Postgres/Supabase).
+# Usa IF NOT EXISTS para que sea idempotente: no falla si ya existen.
 if DATABASE_URL:
     import logging
     logging.basicConfig(level=logging.INFO)
-    _logger_app = logging.getLogger(__name__)
+    _log = logging.getLogger(__name__)
+    _COLUMNAS_REQUERIDAS = [
+        ("ALTER TABLE antropometria ADD COLUMN IF NOT EXISTS evaluador TEXT",),
+        ("ALTER TABLE vo2_max ADD COLUMN IF NOT EXISTS evaluador TEXT",),
+        ("ALTER TABLE caracterizacion_socioeconomica ADD COLUMN IF NOT EXISTS evaluador TEXT",),
+        ("ALTER TABLE test_moca ADD COLUMN IF NOT EXISTS evaluador TEXT",),
+        ("ALTER TABLE test_tinetti ADD COLUMN IF NOT EXISTS evaluador TEXT",),
+        ("ALTER TABLE test_chair_stand ADD COLUMN IF NOT EXISTS evaluador TEXT",),
+    ]
     try:
-        _conn_migraciones = conectar()
-        migraciones.correr_migraciones(_conn_migraciones)
-        _conn_migraciones.close()
-        _logger_app.info('Migraciones completadas al arranque.')
+        import psycopg2 as _pg
+        _c = _pg.connect(DATABASE_URL)
+        _cur = _c.cursor()
+        for (_sql,) in _COLUMNAS_REQUERIDAS:
+            _cur.execute(_sql)
+            _log.info(f'Schema OK: {_sql}')
+        _c.commit()
+        _c.close()
+        _log.info('Schema al arranque: completado.')
     except Exception as _e:
-        _logger_app.error(f'FALLO EN MIGRACIONES AL ARRANQUE: {_e}')
-        # No bloqueamos el arranque, pero el error queda visible en logs
+        _log.error(f'ERROR schema al arranque: {_e}')
 
 # Versionar el texto permite demostrar qué información se presentó al titular.
 VERSION_POLITICA_DATOS = 'SIVAM-PTD-1.0-2026-11-12'
