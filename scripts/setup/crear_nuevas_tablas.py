@@ -95,6 +95,7 @@ crear_antropometria = sql.SQL("""
         anchura_rodilla NUMERIC(5,2),
         riesgo_cardiovascular TEXT CHECK (riesgo_cardiovascular IN ('Con riesgo', 'Sin riesgo')),
         sarcopenia TEXT CHECK (sarcopenia IN ('Sin sarcopenia', 'Sospecha de sarcopenia', 'Sarcopenia')),
+        evaluador TEXT,
         fecha_examen DATE,
         fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         creado_por INTEGER REFERENCES usuarios(id)
@@ -115,6 +116,7 @@ crear_vo2_max = sql.SQL("""
         spo2 NUMERIC(5,2),
         vo2_max NUMERIC(5,2),
         resultado TEXT,
+        evaluador TEXT,
         observaciones TEXT,
         fecha_examen DATE,
         fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -133,6 +135,7 @@ crear_caracterizacion = sql.SQL("""
         vivienda TEXT CHECK (vivienda IN ('Propia', 'Familiar', 'Arrendada')),
         con_quien_convive TEXT CHECK (con_quien_convive IN ('Solo', 'Familia', 'Otro')),
         estado_socioeconomico TEXT CHECK (estado_socioeconomico IN ('Pensionado', 'Otros')),
+        evaluador TEXT,
         fecha_examen DATE,
         fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         creado_por INTEGER REFERENCES usuarios(id)

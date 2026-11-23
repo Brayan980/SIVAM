@@ -1,6 +1,6 @@
 {% extends "base_sivam.html" %}
 
-{% block title %}Antropometría · SIVAM - CECAR{% endblock %}
+{% block title %}Antropometría · SIVAM{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -23,8 +23,7 @@
 {% endif %}
 
 <form method="post" class="hc-form">
-
-  {# ===== Calculadora de IMC ===== #}
+  <input type="hidden" name="volver_url" value="{{ volver_url }}">
   <section class="form-seccion">
     <h3 class="form-seccion-titulo"><i class="fas fa-calculator"></i> Calculadora de IMC</h3>
     <div class="form-grid form-grid-3">
@@ -53,12 +52,13 @@
         <input type="date" id="fecha_examen" name="fecha_examen" value="{{ valores.get('fecha_examen') or '' }}">
       </div>
       <div class="campo-sivam">
-        <label for="sexo">Sexo</label>
-        <select id="sexo" name="sexo">
-          <option value="">Selecciona...</option>
-          <option value="Mujer" {{ 'selected' if valores.get('sexo') == 'Mujer' }}>Mujer</option>
-          <option value="Hombre" {{ 'selected' if valores.get('sexo') == 'Hombre' }}>Hombre</option>
-        </select>
+        <label for="evaluador">Evaluador</label>
+        <input type="text" id="evaluador" name="evaluador" placeholder="Nombre del evaluador"
+               value="{{ valores.get('evaluador') or evaluador_default }}" required>
+      </div>
+      <div class="campo-sivam">
+        <label for="sexo-registro">Sexo registrado</label>
+        <input type="text" id="sexo-registro" value="{{ paciente.sexo or 'No registrado' }}" readonly>
       </div>
     </div>
   </section>

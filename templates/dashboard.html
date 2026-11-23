@@ -1,6 +1,6 @@
 {% extends "base_sivam.html" %}
 
-{% block title %}Dashboard · SIVAM - CECAR{% endblock %}
+{% block title %}Dashboard · SIVAM{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -13,24 +13,30 @@
 </div>
 
 <div class="dashboard-grid">
-  <a href="/" class="dashboard-card dashboard-card-link">
+  <section class="dashboard-card dashboard-card-pacientes" aria-label="Resumen de pacientes">
     <div class="card-header">
       <div class="card-icon card-icon-green">
         <i class="fas fa-users"></i>
       </div>
     </div>
-    <div class="card-value">{{ total_pacientes }}</div>
-    <div class="card-label">Total Pacientes</div>
-  </a>
+    <div class="card-value">{{ pacientes_activos }}</div>
+    <div class="card-label">Pacientes activos</div>
+    <div class="dashboard-pacientes-meta">De {{ total_pacientes }} registrados</div>
+    <a class="dashboard-inactivos-link" href="/?estado=inactivos">
+      <i class="fas fa-box-archive"></i>
+      {{ pacientes_inactivos }} inactivo{{ '' if pacientes_inactivos == 1 else 's' }}
+      <span>Ver</span>
+    </a>
+  </section>
 
-  <a href="/" class="dashboard-card dashboard-card-link">
+  <a href="/?estado=todos" class="dashboard-card dashboard-card-link dashboard-card-acceso">
     <div class="card-header">
       <div class="card-icon card-icon-green">
         <i class="fas fa-file-medical"></i>
       </div>
     </div>
-    <div class="card-value">{{ total_historias }}</div>
-    <div class="card-label">Historias Clínicas</div>
+    <div class="card-value">{{ total_pacientes }}</div>
+    <div class="card-label">Pacientes registrados</div>
   </a>
 
   <a href="/seleccionar_paciente?modulo=antropometria" class="dashboard-card dashboard-card-link">

@@ -1,4 +1,4 @@
-# SIVAM - CECAR
+# SIVAM
 
 Sistema de vista médica: buscador y registro de historias clínicas con módulos
 de evaluación (Antropometría, VO2 Max, MoCA, Tinetti, Chair Stand y
@@ -50,11 +50,25 @@ vista_medico/
    pip install -r requirements.txt
    ```
 
-3. Configurar variables de entorno en un archivo `.env` en la raíz:
+3. Crear el archivo local de configuración a partir de `.env.example` y definir
+   los valores correspondientes. El archivo `.env` nunca se sube al repositorio:
 
    ```
-   SECRET_KEY=una-clave-larga-y-aleatoria
+   # Windows PowerShell
+   Copy-Item .env.example .env
    ```
+
+   Para producción se requieren, como mínimo:
+
+   ```
+   DATABASE_URL=postgresql://USUARIO:CONTRASENA@HOST:5432/BASE?sslmode=require
+   SECRET_KEY=una-clave-larga-aleatoria-y-privada
+   FLASK_DEBUG=false
+   ```
+
+   También deben configurarse los datos institucionales de privacidad:
+   `CONTACTO_PROTECCION_DATOS`, `TELEFONO_PROTECCION_DATOS` y
+   `DIRECCION_PROTECCION_DATOS`.
 
 4. Ejecutar en desarrollo:
 

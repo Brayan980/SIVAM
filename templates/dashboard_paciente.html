@@ -1,6 +1,6 @@
 {% extends "base_sivam.html" %}
 
-{% block title %}Dashboard de {{ paciente.nombres }} · SIVAM - CECAR{% endblock %}
+{% block title %}Dashboard de {{ paciente.nombres }} · SIVAM{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -11,7 +11,7 @@
   </div>
   <div class="page-header-actions">
     <h1 class="page-title">{{ paciente.nombres }} {{ paciente.apellidos }}</h1>
-    <a class="boton-secundario" href="/?id={{ paciente.id }}">&larr; Volver a la ficha</a>
+    <a class="boton-secundario" href="/pacientes">&larr; Volver a Pacientes</a>
   </div>
   <p class="page-subtitle">Resumen individual de evaluaciones y resultados</p>
 </div>
@@ -73,7 +73,7 @@
     <div class="dato-card-head">
       <span class="dato-card-icono"><i class="fas fa-ruler-vertical"></i></span>
       <h4>Antropometría</h4>
-      <a href="/registrar_modulo/antropometria/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+      <a href="/registrar_modulo/antropometria/{{ paciente.id }}?origen=dashboard" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
     </div>
     <div class="dato-card-chips">
       {% if antro.peso %}<span class="chip">{{ antro.peso }} kg</span>{% endif %}
@@ -90,7 +90,7 @@
     <div class="dato-card-head">
       <span class="dato-card-icono"><i class="fas fa-heartbeat"></i></span>
       <h4>VO2 Max</h4>
-      <a href="/registrar_modulo/vo2_max/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+      <a href="/registrar_modulo/vo2_max/{{ paciente.id }}?origen=dashboard" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
     </div>
     <div class="dato-card-chips">
       {% if vo2.vo2_max %}<span class="chip">{{ vo2.vo2_max }} ml/kg/min</span>{% endif %}
@@ -104,7 +104,7 @@
     <div class="dato-card-head">
       <span class="dato-card-icono"><i class="fas fa-brain"></i></span>
       <h4>Test MoCA</h4>
-      <a href="/registrar_modulo/test_moca/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+      <a href="/registrar_modulo/test_moca/{{ paciente.id }}?origen=dashboard" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
     </div>
     <div class="dato-card-chips">
       {% if moca.puntaje_total is not none %}<span class="chip">{{ moca.puntaje_total }} / 30</span>{% endif %}
@@ -118,7 +118,7 @@
     <div class="dato-card-head">
       <span class="dato-card-icono"><i class="fas fa-walking"></i></span>
       <h4>Test Tinetti</h4>
-      <a href="/registrar_modulo/test_tinetti/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+      <a href="/registrar_modulo/test_tinetti/{{ paciente.id }}?origen=dashboard" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
     </div>
     <div class="dato-card-chips">
       {% if tinetti.puntaje_total is not none %}<span class="chip">{{ tinetti.puntaje_total }} / 28</span>{% endif %}
@@ -132,7 +132,7 @@
     <div class="dato-card-head">
       <span class="dato-card-icono"><i class="fas fa-chair"></i></span>
       <h4>Test Chair Stand</h4>
-      <a href="/registrar_modulo/test_chair_stand/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+      <a href="/registrar_modulo/test_chair_stand/{{ paciente.id }}?origen=dashboard" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
     </div>
     <div class="dato-card-chips">
       {% if chair.repeticiones is not none %}<span class="chip">{{ chair.repeticiones }} reps</span>{% endif %}
@@ -146,7 +146,7 @@
     <div class="dato-card-head">
       <span class="dato-card-icono"><i class="fas fa-house-user"></i></span>
       <h4>Caracterización</h4>
-      <a href="/registrar_modulo/caracterizacion/{{ paciente.id }}" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
+      <a href="/registrar_modulo/caracterizacion/{{ paciente.id }}?origen=dashboard" class="dato-card-editar" title="Editar"><i class="fas fa-pen"></i></a>
     </div>
     <div class="dato-card-chips">
       {% if caract.escolaridad %}<span class="chip">{{ caract.escolaridad }}</span>{% endif %}

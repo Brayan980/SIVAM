@@ -3,13 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}SIVAM - CECAR{% endblock %}</title>
+  <title>{% block title %}SIVAM{% endblock %}</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23e67e22' d='M228.3 469.1 47.6 300.4c-4.2-3.9-8.2-8.1-11.9-12.4h96.8l35.9 68.1c1.9 3.7 5.9 5.9 10.1 5.7s7.8-2.9 9.4-6.7l58.3-141.9 34.1 84c1.6 4 5.5 6.6 9.7 6.7l112-.1h13.9c-3.7 4.3-7.7 8.5-11.9 12.4L283.7 469.1c-15.3 14.2-39.1 14.2-54.4 0zM473.7 73.5C505 105.4 512 154.3 490 192.5H358.7l-45.4-112c-1.6-3.9-5.4-6.4-9.6-6.5s-8.1 2.4-9.7 6.3L232.1 224.4l-33.9-64.3c-1.8-3.4-5.4-5.6-9.3-5.7s-7.6 1.8-9.6 5.1l-40.6 68.9H21.5c-22-38.3-15-87.1 16.4-119C74.9 34.8 132.4 33.9 170 66.8l4 3.5 21.6 18.9 21.6-18.9 4-3.5c37.6-32.9 95.1-32 131.9 3.5l.4.4z'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script>
-    // Modo oscuro desactivado: limpiar cualquier preferencia previa.
-    try { localStorage.removeItem('sivam-tema'); } catch (e) {}
+    // La apariencia se guarda por cuenta dentro de este navegador. Así una
+    // preferencia de un profesional no modifica la vista de otro usuario.
+    try {
+      const claveTema = 'sivam-tema-usuario-' + {{ (current_user.id if current_user.is_authenticated else 'anonimo')|tojson }};
+      if (localStorage.getItem(claveTema) === 'oscuro') {
+        document.documentElement.classList.add('tema-oscuro');
+      }
+    } catch (e) {}
   </script>
 </head>
 <body class="sivam-body">
@@ -20,8 +26,8 @@
       <div class="sidebar-header">
         <div class="sidebar-logo"><i class="fas fa-heart-pulse"></i></div>
         <div class="sidebar-brand">
-          <span class="brand-main">SIVAM CECAR</span>
-          <span class="brand-sub">DELFIN CECAR</span>
+          <span class="brand-main">SIVAM</span>
+          <span class="brand-sub">Sistema de Valoración del Adulto Mayor</span>
         </div>
       </div>
 
@@ -30,7 +36,7 @@
           <span class="nav-icon"><i class="fas fa-chart-line"></i></span>
           <span>Dashboard</span>
         </a>
-        <a href="/" class="nav-item {% if request.endpoint == 'index' %}nav-item-active{% endif %}">
+        <a href="/pacientes" class="nav-item {% if request.endpoint == 'index' %}nav-item-active{% endif %}">
           <span class="nav-icon"><i class="fas fa-users"></i></span>
           <span>Pacientes</span>
         </a>
@@ -86,6 +92,10 @@
       </nav>
 
       <div class="sidebar-footer">
+        <a href="{{ url_for('politica_tratamiento_datos') }}" class="logout-link" target="_blank" rel="noopener">
+          <span class="nav-icon"><i class="fas fa-shield-heart"></i></span>
+          <span>Privacidad</span>
+        </a>
         <a href="/logout" class="logout-link">
           <span class="nav-icon"><i class="fas fa-sign-out-alt"></i></span>
           <span>Cerrar sesión</span>
@@ -120,6 +130,14 @@
       </header>
 
       <div class="main-content">
+        {% with mensajes = get_flashed_messages(with_categories=true) %}
+          {% for categoria, mensaje in mensajes %}
+            <div class="alerta-sivam {{ 'alerta-ok' if categoria == 'ok' else 'alerta-error' }}" role="status">
+              <i class="fas {{ 'fa-circle-check' if categoria == 'ok' else 'fa-circle-exclamation' }}"></i>
+              <span>{{ mensaje }}</span>
+            </div>
+          {% endfor %}
+        {% endwith %}
         {% block content %}{% endblock %}
       </div>
     </main>
@@ -140,6 +158,54 @@
         menu.classList.remove('abierto');
       }
     });
+  </script>
+
+  <!-- Indicador de carga global -->
+  <div id="sivam-loader" class="sivam-loader" aria-hidden="true">
+    <div class="sivam-loader-caja">
+      <div class="sivam-loader-spinner"></div>
+      <p class="sivam-loader-texto">Cargando...</p>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const loader = document.getElementById('sivam-loader');
+      if (!loader) return;
+
+      function mostrarLoader() {
+        loader.classList.add('activo');
+      }
+      function ocultarLoader() {
+        loader.classList.remove('activo');
+      }
+
+      // Mostrar al navegar por enlaces internos (no anclas, no nueva pestaña,
+      // no descargas).
+      document.addEventListener('click', function (e) {
+        const enlace = e.target.closest('a');
+        if (!enlace) return;
+        const href = enlace.getAttribute('href');
+        if (!href || href.startsWith('#')) return;
+        if (enlace.target === '_blank') return;
+        if (enlace.hasAttribute('download')) return;
+        if (href.startsWith('javascript:')) return;
+        // Solo rutas internas del mismo sitio.
+        if (enlace.host && enlace.host !== window.location.host) return;
+        mostrarLoader();
+      });
+
+      // Mostrar al enviar formularios.
+      document.addEventListener('submit', function () {
+        mostrarLoader();
+      });
+
+      // Ocultar si el usuario vuelve con el botón "atrás" (bfcache).
+      window.addEventListener('pageshow', function (e) {
+        if (e.persisted) ocultarLoader();
+      });
+      window.addEventListener('beforeunload', ocultarLoader);
+    })();
   </script>
 </body>
 </html>

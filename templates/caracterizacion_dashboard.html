@@ -1,6 +1,6 @@
 {% extends "base_sivam.html" %}
 
-{% block title %}Caracterización Socioeconómica · SIVAM - CECAR{% endblock %}
+{% block title %}Caracterización Socioeconómica · SIVAM{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -73,6 +73,7 @@
           <th>Vivienda</th>
           <th>Convive con</th>
           <th>Estado</th>
+          <th>Evaluador</th>
           <th>Fecha</th>
           <th class="col-acciones">Acciones</th>
         </tr>
@@ -87,6 +88,7 @@
           <td>{{ r.vivienda if r.vivienda else '-' }}</td>
           <td>{{ r.con_quien_convive if r.con_quien_convive else '-' }}</td>
           <td>{{ r.estado_socioeconomico if r.estado_socioeconomico else '-' }}</td>
+          <td>{{ r.evaluador if r.evaluador else '-' }}</td>
           <td>{{ r.fecha_examen if r.fecha_examen else '-' }}</td>
           <td class="col-acciones">
             <button type="button" class="accion-btn accion-ver" title="Ver ficha"

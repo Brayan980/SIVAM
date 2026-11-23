@@ -17,21 +17,58 @@ import os
 import sqlite3
 
 import psycopg2
+from urllib.parse import quote_plus
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv('DATABASE_URL')
+
+def _construir_database_url():
+    """Obtiene la cadena de conexión.
+
+    Prioridad:
+    1. DATABASE_URL completa (si ya está lista).
+    2. Piezas separadas (SUPABASE_HOST, SUPABASE_USER, SUPABASE_PASSWORD, ...).
+       Útil cuando la contraseña tiene caracteres especiales (+, $, &, @, etc.):
+       aquí se codifican automáticamente para que la URL sea válida.
+    """
+    url = os.getenv('DATABASE_URL')
+    if url:
+        return url
+
+    password = os.getenv('SUPABASE_PASSWORD')
+    if password:
+        host = os.getenv(
+            'SUPABASE_HOST',
+            'aws-0-us-east-1.pooler.supabase.com',
+        )
+        user = os.getenv('SUPABASE_USER', 'postgres.jxrwmxzhnjqzbevdaqfc')
+        port = os.getenv('SUPABASE_PORT', '5432')
+        dbname = os.getenv('SUPABASE_DB', 'postgres')
+        return (
+            f'postgresql://{user}:{quote_plus(password)}'
+            f'@{host}:{port}/{dbname}'
+        )
+
+    return None
+
+
+DATABASE_URL = _construir_database_url()
 if not DATABASE_URL:
-    raise SystemExit('Falta DATABASE_URL (cadena de conexión de Supabase).')
+    raise SystemExit(
+        'Falta la conexión. Define DATABASE_URL completa, o bien '
+        'SUPABASE_PASSWORD (y opcionalmente SUPABASE_HOST/USER/PORT/DB).'
+    )
 
 _RAIZ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SQLITE_PATH = os.path.join(_RAIZ, 'data', 'clinica.db')
 
 # Orden de creación/inserción respetando dependencias (FKs).
 TABLAS = [
-    'pacientes',
     'usuarios',
+    'pacientes',
+    'consentimientos_tratamiento_datos',
     'antropometria',
     'vo2_max',
     'test_moca',
@@ -46,7 +83,8 @@ DDL = """
 CREATE TABLE IF NOT EXISTS pacientes (
     id SERIAL PRIMARY KEY,
     nombres TEXT, apellidos TEXT, edad TEXT,
-    fecha_de_nacimiento TEXT, sexo TEXT, barrio TEXT,
+    fecha_de_nacimiento TEXT, edad_es_estimada BOOLEAN,
+    tipo_documento TEXT, numero_documento TEXT, telefono TEXT, sexo TEXT, barrio TEXT,
     antecedentes_familiares TEXT, con_quien_vives TEXT, caidas_previas TEXT,
     lesiones_musculoesqueleticas_o_cirugia TEXT,
     medicacion_y_suplementacion TEXT, medicacion_sumplementacion TEXT,
@@ -54,7 +92,17 @@ CREATE TABLE IF NOT EXISTS pacientes (
     habitos_y_estilos_de_vida_alcohol_tabaco_azucares_alimentos_procesados TEXT,
     alergias TEXT, ejercicio_y_actividad_fisica_leve_moderado_intenso TEXT,
     actividad_sexual TEXT, riesgo_cardiovascular_con_riesgo_o_sin_riesgo TEXT,
-    busqueda TEXT, fecha_creacion TEXT
+    busqueda TEXT, fecha_creacion TEXT,
+    autoriza_tratamiento_datos BOOLEAN,
+    fecha_autorizacion TIMESTAMPTZ,
+    version_politica TEXT,
+    texto_autorizacion_aceptado TEXT,
+    estado_autorizacion TEXT,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    fecha_inactivacion TIMESTAMPTZ,
+    inactivado_por INTEGER,
+    fecha_reactivacion TIMESTAMPTZ,
+    reactivado_por INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS usuarios (
@@ -64,6 +112,39 @@ CREATE TABLE IF NOT EXISTS usuarios (
     rol TEXT,
     nombre_completo TEXT,
     fecha_creacion TIMESTAMP
+);
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'pacientes_inactivado_por_fk'
+    ) THEN
+        ALTER TABLE pacientes
+            ADD CONSTRAINT pacientes_inactivado_por_fk
+            FOREIGN KEY (inactivado_por) REFERENCES usuarios(id);
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'pacientes_reactivado_por_fk'
+    ) THEN
+        ALTER TABLE pacientes
+            ADD CONSTRAINT pacientes_reactivado_por_fk
+            FOREIGN KEY (reactivado_por) REFERENCES usuarios(id);
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS consentimientos_tratamiento_datos (
+    id BIGSERIAL PRIMARY KEY,
+    paciente_id INTEGER NOT NULL REFERENCES pacientes(id) ON DELETE RESTRICT,
+    autoriza_tratamiento_datos BOOLEAN NOT NULL,
+    fecha_autorizacion TIMESTAMPTZ NOT NULL,
+    version_politica TEXT NOT NULL,
+    texto_autorizacion_aceptado TEXT NOT NULL,
+    registrado_por INTEGER REFERENCES usuarios(id),
+    fecha_registro TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS antropometria (
@@ -76,7 +157,7 @@ CREATE TABLE IF NOT EXISTS antropometria (
     circunferencia_pantorrilla REAL, circunferencia_brazo REAL,
     fuerza_lado_derecho REAL, fuerza_lado_izquierdo REAL,
     anchura_brazo REAL, anchura_muneca REAL, anchura_rodilla REAL,
-    riesgo_cardiovascular TEXT, sarcopenia TEXT, fecha_examen TEXT,
+    riesgo_cardiovascular TEXT, sarcopenia TEXT, evaluador TEXT, fecha_examen TEXT,
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     creado_por INTEGER REFERENCES usuarios(id)
 );
@@ -85,7 +166,7 @@ CREATE TABLE IF NOT EXISTS vo2_max (
     id SERIAL PRIMARY KEY,
     paciente_id INTEGER NOT NULL REFERENCES pacientes(id) ON DELETE CASCADE,
     edad INTEGER, ta TEXT, fc TEXT, fc_max REAL, spo2 REAL, vo2_max REAL,
-    resultado TEXT, observaciones TEXT, fecha_examen TEXT,
+    resultado TEXT, evaluador TEXT, observaciones TEXT, fecha_examen TEXT,
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     creado_por INTEGER REFERENCES usuarios(id)
 );
@@ -120,7 +201,7 @@ CREATE TABLE IF NOT EXISTS test_chair_stand (
     id SERIAL PRIMARY KEY,
     paciente_id INTEGER NOT NULL REFERENCES pacientes(id) ON DELETE CASCADE,
     resultado TEXT, repeticiones INTEGER, percentil INTEGER,
-    evaluador TEXT, observaciones TEXT, fecha_examen TEXT,
+    evaluador TEXT, observaciones TEXT, fecha_examen TEXT, edad_evaluacion INTEGER,
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     creado_por INTEGER REFERENCES usuarios(id)
 );
@@ -129,7 +210,7 @@ CREATE TABLE IF NOT EXISTS caracterizacion_socioeconomica (
     id SERIAL PRIMARY KEY,
     paciente_id INTEGER NOT NULL REFERENCES pacientes(id) ON DELETE CASCADE,
     escolaridad TEXT, vivienda TEXT, con_quien_convive TEXT,
-    estado_socioeconomico TEXT, fecha_examen TEXT,
+    estado_socioeconomico TEXT, evaluador TEXT, fecha_examen TEXT,
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     creado_por INTEGER REFERENCES usuarios(id)
 );

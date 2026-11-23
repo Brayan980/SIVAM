@@ -1,13 +1,15 @@
 # ============================================================
 # VISTA DEL MEDICO - Buscador y registro de historias clinicas
 # ============================================================
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file, abort, session
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from dotenv import load_dotenv
 import os
-from campos import CAMPOS, CAMPOS_CLINICOS, ETIQUETAS, normalizar
+import sqlite3
+from datetime import datetime, timezone, date
+from campos import CAMPOS, CAMPOS_CLINICOS, ETIQUETAS, normalizar, calcular_edad
 from db import conectar
 import exportar
 import graficas
@@ -18,6 +20,83 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'clave-secreta-para-sesiones')
 
+# Versionar el texto permite demostrar qué información se presentó al titular.
+VERSION_POLITICA_DATOS = 'SIVAM-PTD-1.0-2026-11-12'
+TEXTO_AUTORIZACION_DATOS = (
+    'Aviso de privacidad: La entidad, por medio del área encargada, es responsable '
+    'del tratamiento de los datos recolectados en SIVAM para valoración, seguimiento '
+    'y gestión institucional o investigativa autorizada. Conoce las finalidades, tus '
+    'derechos y el procedimiento para ejercerlos en la Política de Tratamiento de '
+    'Datos Personales. Confirmo que he informado este aviso al paciente y que he '
+    'obtenido su autorización previa, expresa e informada para dicho tratamiento.'
+)
+
+ESTADOS_AUTORIZACION = {
+    'autorizada',
+    'sin_autorizacion_comprobable',
+    'rechazada',
+    'revocada',
+}
+
+TIPOS_DOCUMENTO = ('CC', 'TI', 'CE', 'Pasaporte')
+
+# Se conservan como evidencia interna, pero no son datos clínicos que deban
+# aparecer en la ficha principal ni en el modal del paciente.
+CAMPOS_AUDITORIA_PRIVACIDAD = {
+    'autoriza_tratamiento_datos', 'fecha_autorizacion', 'version_politica',
+    'texto_autorizacion_aceptado', 'estado_autorizacion',
+}
+CAMPOS_AUDITORIA_INACTIVACION = {
+    'activo', 'fecha_inactivacion', 'inactivado_por', 'inactivado_por_nombre',
+    'fecha_reactivacion', 'reactivado_por', 'reactivado_por_nombre',
+}
+
+
+def _fecha_autorizacion_servidor():
+    """Marca de tiempo UTC generada por el servidor, no por el navegador."""
+    return datetime.now(timezone.utc)
+
+
+def _estado_autorizacion(paciente):
+    """Obtiene el estado actual sin reinterpretar ni reescribir datos históricos."""
+    estado = paciente.get('estado_autorizacion')
+    if estado in ESTADOS_AUTORIZACION:
+        return estado
+    if paciente.get('autoriza_tratamiento_datos'):
+        return 'autorizada'
+    return 'sin_autorizacion_comprobable'
+
+
+def _paciente_esta_activo(paciente):
+    """Los registros previos a la migración se tratan como activos."""
+    return paciente.get('activo') not in (False, 0, '0', 'false', 'False')
+
+
+def _paciente_activo_en_bd(cursor, paciente_id):
+    """Comprueba que el paciente exista y siga disponible para operación clínica."""
+    cursor.execute('SELECT activo FROM pacientes WHERE id = %s', (paciente_id,))
+    fila = cursor.fetchone()
+    return bool(fila) and fila[0] not in (False, 0, '0', 'false', 'False')
+
+
+def _actualizar_edad_calculada(paciente, fecha_referencia=None):
+    """Calcula solo para la vista; nunca reescribe edades ni historiales."""
+    edad = calcular_edad(paciente.get('fecha_de_nacimiento'), fecha_referencia)
+    if edad is not None:
+        paciente['edad'] = edad
+        paciente['edad_es_estimada'] = False
+    return paciente
+
+
+def _edad_para_evaluacion(paciente, fecha_examen=None):
+    """Edad de la fecha de la prueba, sin alterar la historia del paciente."""
+    try:
+        referencia = date.fromisoformat(fecha_examen) if fecha_examen else date.today()
+    except ValueError:
+        referencia = date.today()
+    edad = calcular_edad(paciente.get('fecha_de_nacimiento'), referencia)
+    return edad if edad is not None else paciente.get('edad')
+
 # Configuración de Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -25,23 +104,55 @@ login_manager.login_view = 'login'
 login_manager.login_message = 'Por favor inicia sesión para acceder a esta página.'
 
 
+@app.route('/health')
+def health():
+    """Endpoint ligero para monitoreo (UptimeRobot, cron-job, etc.).
+
+    No requiere login ni consulta la base de datos, así que responde de
+    inmediato. Sirve para hacer 'ping' periódico y evitar que Render
+    duerma el servicio (cold start) en el plan gratuito.
+    """
+    return 'ok', 200
+
+
 class User(UserMixin):
-    def __init__(self, user_id, usuario, rol):
+    def __init__(self, user_id, usuario, rol, nombre_completo=None):
         self.id = user_id
         self.usuario = usuario
         self.rol = rol
+        self.nombre_completo = nombre_completo
 
 
 @login_manager.user_loader
 def load_user(user_id):
     conexion = conectar()
     cursor = conexion.cursor()
-    cursor.execute('SELECT * FROM usuarios WHERE id = %s', (user_id,))
+    cursor.execute(
+        'SELECT id, usuario, contraseña_hash, rol, nombre_completo FROM usuarios WHERE id = %s',
+        (user_id,)
+    )
     fila = cursor.fetchone()
     conexion.close()
     if fila:
-        return User(fila[0], fila[1], fila[3])
+        return User(fila[0], fila[1], fila[3], fila[4])
     return None
+
+
+def _evaluador_activo():
+    """Nombre del profesional autenticado, seguro para formularios y POST."""
+    evaluador = (session.get('evaluador_default', '') or '').strip()
+    if evaluador:
+        return evaluador
+    if current_user.is_authenticated:
+        return (getattr(current_user, 'nombre_completo', '') or
+                getattr(current_user, 'usuario', '') or '').strip()
+    return ''
+
+
+@app.context_processor
+def inyectar_evaluador_default():
+    """Disponibiliza el evaluador autenticado en todas las plantillas Jinja."""
+    return {'evaluador_default': _evaluador_activo()}
 
 
 # Clasificaciones automáticas cuya tabla y lógica viven en graficas.py como
@@ -64,13 +175,20 @@ def login():
 
         conexion = conectar()
         cursor = conexion.cursor()
-        cursor.execute('SELECT * FROM usuarios WHERE usuario = %s', (usuario,))
+        cursor.execute(
+            'SELECT id, usuario, contraseña_hash, rol, nombre_completo '
+            'FROM usuarios WHERE usuario = %s',
+            (usuario,)
+        )
         fila = cursor.fetchone()
         conexion.close()
 
         if fila and check_password_hash(fila[2], contraseña):
-            user = User(fila[0], fila[1], fila[3])
+            user = User(fila[0], fila[1], fila[3], fila[4])
             login_user(user)
+            # Flask-Login conserva la identidad en ``_user_id``; guardamos
+            # además el nombre legible para prellenar los formularios.
+            session['evaluador_default'] = (fila[4] or fila[1] or '').strip()
             return redirect(url_for('dashboard'))
         else:
             flash('Usuario o contraseña incorrectos.')
@@ -121,6 +239,13 @@ def usuarios_lista():
     columnas = [desc[0] for desc in cursor.description]
     conexion.close()
     usuarios = [dict(zip(columnas, f)) for f in filas]
+    # Normalizar fecha_creacion a texto: en PostgreSQL viene como datetime
+    # y en SQLite como string ISO. El template espera poder cortar los
+    # primeros 10 caracteres (YYYY-MM-DD).
+    for u in usuarios:
+        fecha = u.get('fecha_creacion')
+        if fecha is not None and not isinstance(fecha, str):
+            u['fecha_creacion'] = fecha.isoformat()
     return render_template('usuarios.html', usuarios=usuarios, roles=ROLES_VALIDOS)
 
 
@@ -233,11 +358,26 @@ def usuarios_eliminar(user_id):
     return redirect(url_for('usuarios_lista'))
 
 
+@app.route('/pacientes')
+@login_required
+def pacientes():
+    """Alias limpio para la lista de pacientes, sin heredar parámetros."""
+    return redirect(url_for('index'))
+
+
 @app.route('/')
 @login_required
 def index():
     query = request.args.get('q', '').strip()
     paciente_id = request.args.get('id', type=int)
+    estado = request.args.get('estado', 'activos')
+    if estado not in ('activos', 'inactivos', 'todos'):
+        estado = 'activos'
+    filtro_estado = {
+        'activos': 'COALESCE(p.activo, TRUE) = TRUE',
+        'inactivos': 'COALESCE(p.activo, TRUE) = FALSE',
+        'todos': 'TRUE',
+    }[estado]
 
     resultados = []
     paciente = None
@@ -246,11 +386,26 @@ def index():
     cursor = conexion.cursor()
 
     if paciente_id:
-        cursor.execute('SELECT * FROM pacientes WHERE id = %s', (paciente_id,))
+        cursor.execute(
+            '''SELECT p.*, COALESCE(NULLIF(u.nombre_completo, ''), u.usuario) AS inactivado_por_nombre,
+                      COALESCE(NULLIF(ur.nombre_completo, ''), ur.usuario) AS reactivado_por_nombre
+               FROM pacientes p
+               LEFT JOIN usuarios u ON u.id = p.inactivado_por
+               LEFT JOIN usuarios ur ON ur.id = p.reactivado_por
+               WHERE p.id = %s''',
+            (paciente_id,)
+        )
         fila = cursor.fetchone()
         if fila:
             columnas = [desc[0] for desc in cursor.description]
             paciente = dict(zip(columnas, fila))
+            _actualizar_edad_calculada(paciente)
+            paciente['esta_inactivo'] = not _paciente_esta_activo(paciente)
+            cursor.execute(
+                'SELECT 1 FROM consentimientos_tratamiento_datos WHERE paciente_id = %s LIMIT 1',
+                (paciente_id,)
+            )
+            paciente['eliminacion_bloqueada'] = cursor.fetchone() is not None
 
             # Cargar datos de otros módulos si existen
             cursor.execute('SELECT * FROM antropometria WHERE paciente_id = %s', (paciente_id,))
@@ -298,27 +453,48 @@ def index():
     if not paciente_id:
         if query:
             patron = f'%{normalizar(query)}%'
-            cursor.execute('SELECT COUNT(*) FROM pacientes WHERE busqueda LIKE %s', (patron,))
+            cursor.execute(
+                f'''SELECT COUNT(*) FROM pacientes p
+                    WHERE p.busqueda LIKE %s AND {filtro_estado}''',
+                (patron,)
+            )
             total_filas = cursor.fetchone()[0]
             cursor.execute(
-                '''SELECT * FROM pacientes
-                   WHERE busqueda LIKE %s
-                   ORDER BY apellidos, nombres
+                f'''SELECT p.*, COALESCE(NULLIF(u.nombre_completo, ''), u.usuario) AS inactivado_por_nombre,
+                           COALESCE(NULLIF(ur.nombre_completo, ''), ur.usuario) AS reactivado_por_nombre
+                   FROM pacientes p
+                   LEFT JOIN usuarios u ON u.id = p.inactivado_por
+                   LEFT JOIN usuarios ur ON ur.id = p.reactivado_por
+                   WHERE p.busqueda LIKE %s AND {filtro_estado}
+                   ORDER BY p.apellidos, p.nombres
                    LIMIT %s OFFSET %s''',
                 (patron, por_pagina, (pagina - 1) * por_pagina)
             )
         else:
-            cursor.execute('SELECT COUNT(*) FROM pacientes')
+            cursor.execute(f'SELECT COUNT(*) FROM pacientes p WHERE {filtro_estado}')
             total_filas = cursor.fetchone()[0]
             cursor.execute(
-                '''SELECT * FROM pacientes
-                   ORDER BY apellidos, nombres
+                f'''SELECT p.*, COALESCE(NULLIF(u.nombre_completo, ''), u.usuario) AS inactivado_por_nombre,
+                           COALESCE(NULLIF(ur.nombre_completo, ''), ur.usuario) AS reactivado_por_nombre
+                   FROM pacientes p
+                   LEFT JOIN usuarios u ON u.id = p.inactivado_por
+                   LEFT JOIN usuarios ur ON ur.id = p.reactivado_por
+                   WHERE {filtro_estado}
+                   ORDER BY p.apellidos, p.nombres
                    LIMIT %s OFFSET %s''',
                 (por_pagina, (pagina - 1) * por_pagina)
             )
         filas = cursor.fetchall()
         columnas = [desc[0] for desc in cursor.description]
         resultados = [dict(zip(columnas, fila)) for fila in filas]
+        for resultado in resultados:
+            _actualizar_edad_calculada(resultado)
+            resultado['esta_inactivo'] = not _paciente_esta_activo(resultado)
+            cursor.execute(
+                'SELECT 1 FROM consentimientos_tratamiento_datos WHERE paciente_id = %s LIMIT 1',
+                (resultado['id'],)
+            )
+            resultado['eliminacion_bloqueada'] = cursor.fetchone() is not None
         total_paginas = max(1, -(-total_filas // por_pagina))
 
     conexion.close()
@@ -328,9 +504,16 @@ def index():
         detalle = [
             (ETIQUETAS.get(campo, campo), valor)
             for campo, valor in paciente.items()
-            if campo not in ('id', 'nombres', 'apellidos', 'busqueda') and valor not in (None, '')
+            if campo not in ('id', 'nombres', 'apellidos', 'busqueda', 'tipo_documento', 'numero_documento', 'telefono')
+            and campo not in CAMPOS_AUDITORIA_PRIVACIDAD
+            and campo not in CAMPOS_AUDITORIA_INACTIVACION and valor not in (None, '')
             and campo not in ['antropometria', 'vo2_max', 'test_moca', 'test_tinetti', 'test_chair_stand', 'caracterizacion']
         ]
+        detalle.extend([
+            ('Tipo de documento', paciente.get('tipo_documento') or 'No registrado'),
+            ('Número de documento', paciente.get('numero_documento') or 'No registrado'),
+            ('Teléfono', paciente.get('telefono') or 'No registrado'),
+        ])
 
     return render_template(
         'index_sivam.html',
@@ -341,6 +524,7 @@ def index():
         pagina=pagina,
         total_paginas=total_paginas,
         total_registros=(total_filas if not paciente_id else 0),
+        estado=estado,
     )
 
 
@@ -352,13 +536,22 @@ def dashboard_paciente(paciente_id):
     conexion = conectar()
     cursor = conexion.cursor()
 
-    cursor.execute('SELECT * FROM pacientes WHERE id = %s', (paciente_id,))
+    cursor.execute(
+        '''SELECT p.*, COALESCE(NULLIF(ui.nombre_completo, ''), ui.usuario) AS inactivado_por_nombre,
+                  COALESCE(NULLIF(ur.nombre_completo, ''), ur.usuario) AS reactivado_por_nombre
+           FROM pacientes p
+           LEFT JOIN usuarios ui ON ui.id = p.inactivado_por
+           LEFT JOIN usuarios ur ON ur.id = p.reactivado_por
+           WHERE p.id = %s''',
+        (paciente_id,)
+    )
     fila = cursor.fetchone()
     if not fila:
         conexion.close()
         abort(404)
     columnas = [desc[0] for desc in cursor.description]
     paciente = dict(zip(columnas, fila))
+    _actualizar_edad_calculada(paciente)
 
     def _cargar(tabla):
         cursor.execute(f'SELECT * FROM {tabla} WHERE paciente_id = %s', (paciente_id,))
@@ -500,6 +693,7 @@ def historia_ficha(paciente_id):
         return '<p>Paciente no encontrado.</p>', 404
     columnas = [desc[0] for desc in cursor.description]
     p = dict(zip(columnas, fila))
+    _actualizar_edad_calculada(p)
     conexion.close()
     return render_template('_historia_modal.html', p=p)
 
@@ -511,7 +705,15 @@ def paciente_ficha(paciente_id):
     conexion = conectar()
     cursor = conexion.cursor()
 
-    cursor.execute('SELECT * FROM pacientes WHERE id = %s', (paciente_id,))
+    cursor.execute(
+        '''SELECT p.*, COALESCE(NULLIF(ui.nombre_completo, ''), ui.usuario) AS inactivado_por_nombre,
+                  COALESCE(NULLIF(ur.nombre_completo, ''), ur.usuario) AS reactivado_por_nombre
+           FROM pacientes p
+           LEFT JOIN usuarios ui ON ui.id = p.inactivado_por
+           LEFT JOIN usuarios ur ON ur.id = p.reactivado_por
+           WHERE p.id = %s''',
+        (paciente_id,)
+    )
     fila = cursor.fetchone()
     if not fila:
         conexion.close()
@@ -519,6 +721,26 @@ def paciente_ficha(paciente_id):
 
     columnas = [desc[0] for desc in cursor.description]
     paciente = dict(zip(columnas, fila))
+    _actualizar_edad_calculada(paciente)
+    paciente['esta_inactivo'] = not _paciente_esta_activo(paciente)
+
+    # La ficha abierta desde el icono de ojo muestra el estado y, cuando
+    # exista, la evidencia registrada de la autorización; no expone el texto
+    # completo de la política ni datos que no son necesarios en esta vista.
+    cursor.execute(
+        '''SELECT c.fecha_autorizacion, c.version_politica,
+                  COALESCE(NULLIF(u.nombre_completo, ''), u.usuario) AS registrado_por_nombre
+           FROM consentimientos_tratamiento_datos c
+           LEFT JOIN usuarios u ON u.id = c.registrado_por
+           WHERE c.paciente_id = %s
+           ORDER BY c.id DESC LIMIT 1''',
+        (paciente_id,)
+    )
+    consentimiento_fila = cursor.fetchone()
+    consentimiento = None
+    if consentimiento_fila:
+        columnas_consentimiento = [desc[0] for desc in cursor.description]
+        consentimiento = dict(zip(columnas_consentimiento, consentimiento_fila))
 
     modulos = {}
     for tabla, clave in [('antropometria', 'antropometria'), ('vo2_max', 'vo2_max'),
@@ -536,13 +758,23 @@ def paciente_ficha(paciente_id):
     detalle = [
         (ETIQUETAS.get(campo, campo), valor)
         for campo, valor in paciente.items()
-        if campo not in ('id', 'nombres', 'apellidos', 'busqueda') and valor not in (None, '')
+        if campo not in ('id', 'nombres', 'apellidos', 'busqueda', 'tipo_documento', 'numero_documento', 'telefono')
+        and campo not in CAMPOS_AUDITORIA_PRIVACIDAD
+        and campo not in CAMPOS_AUDITORIA_INACTIVACION and valor not in (None, '')
     ]
+    detalle.extend([
+        ('Tipo de documento', paciente.get('tipo_documento') or 'No registrado'),
+        ('Número de documento', paciente.get('numero_documento') or 'No registrado'),
+        ('Teléfono', paciente.get('telefono') or 'No registrado'),
+    ])
 
-    return render_template('_ficha_modal.html', paciente=paciente, detalle=detalle, modulos=modulos)
+    return render_template(
+        '_ficha_modal.html', paciente=paciente, detalle=detalle, modulos=modulos,
+        estado_autorizacion=_estado_autorizacion(paciente), consentimiento=consentimiento,
+    )
 
 
-def _procesar_formulario(request_form):
+def _procesar_formulario(request_form, edad_es_estimada_original=None):
     """Valida y devuelve (errores, nombres, apellidos, valores_clinicos, busqueda)."""
     errores = []
     nombres = request_form.get('nombres', '').strip()
@@ -551,9 +783,63 @@ def _procesar_formulario(request_form):
     if not nombres or not apellidos:
         errores.append('Nombres y apellidos son obligatorios.')
 
-    valores_clinicos = [request_form.get(c, '').strip() for c in CAMPOS_CLINICOS]
+    fecha_nacimiento = request_form.get('fecha_de_nacimiento', '').strip()
+    desconoce_fecha = request_form.get('fecha_nacimiento_desconocida') == 'si'
+    edad_manual = request_form.get('edad', '').strip()
+
+    if fecha_nacimiento:
+        edad_calculada = calcular_edad(fecha_nacimiento)
+        if edad_calculada is None:
+            errores.append('La fecha de nacimiento debe ser válida y no puede ser futura.')
+            edad_es_estimada = edad_es_estimada_original
+        else:
+            edad_manual = str(edad_calculada)
+            edad_es_estimada = False
+    elif desconoce_fecha:
+        try:
+            edad_numerica = int(edad_manual)
+            if not 0 <= edad_numerica <= 130:
+                raise ValueError
+        except (TypeError, ValueError):
+            errores.append('La edad estimada debe ser un número entero entre 0 y 130.')
+        edad_es_estimada = True
+    else:
+        # Mantiene la falta de certeza de registros históricos sin inferir un estado.
+        edad_es_estimada = edad_es_estimada_original
+
+    tipo_documento = request_form.get('tipo_documento', '').strip()
+    numero_documento = request_form.get('numero_documento', '').strip()
+    telefono = request_form.get('telefono', '').strip()
+    if numero_documento and not tipo_documento:
+        errores.append('Selecciona el tipo de documento cuando ingreses un número de documento.')
+    if tipo_documento and tipo_documento not in TIPOS_DOCUMENTO:
+        errores.append('El tipo de documento indicado no es válido.')
+    if len(numero_documento) > 40:
+        errores.append('El número de documento no puede superar 40 caracteres.')
+    if len(telefono) > 40:
+        errores.append('El teléfono no puede superar 40 caracteres.')
+
+    valores_por_campo = {c: request_form.get(c, '').strip() for c in CAMPOS_CLINICOS}
+    valores_por_campo['fecha_de_nacimiento'] = fecha_nacimiento
+    valores_por_campo['edad'] = edad_manual
+    valores_por_campo['tipo_documento'] = tipo_documento
+    valores_por_campo['numero_documento'] = numero_documento
+    valores_por_campo['telefono'] = telefono
+    valores_clinicos = [valores_por_campo[c] for c in CAMPOS_CLINICOS]
     busqueda = normalizar(f'{nombres} {apellidos}')
-    return errores, nombres, apellidos, valores_clinicos, busqueda
+    return errores, nombres, apellidos, valores_clinicos, busqueda, edad_es_estimada
+
+
+def _registrar_autorizacion(cursor, paciente_id, fecha_autorizacion):
+    """Conserva una evidencia que el trigger de BD no permite modificar."""
+    cursor.execute(
+        '''INSERT INTO consentimientos_tratamiento_datos
+           (paciente_id, autoriza_tratamiento_datos, fecha_autorizacion,
+            version_politica, texto_autorizacion_aceptado, registrado_por)
+           VALUES (%s, %s, %s, %s, %s, %s)''',
+        (paciente_id, True, fecha_autorizacion, VERSION_POLITICA_DATOS,
+         TEXTO_AUTORIZACION_DATOS, getattr(current_user, 'id', None))
+    )
 
 
 @app.route('/nuevo', methods=['GET', 'POST'])
@@ -562,19 +848,35 @@ def nuevo():
     errores = []
 
     if request.method == 'POST':
-        errores, nombres, apellidos, valores_clinicos, busqueda = _procesar_formulario(request.form)
+        errores, nombres, apellidos, valores_clinicos, busqueda, edad_es_estimada = _procesar_formulario(request.form)
+        confirma_autorizacion = request.form.get('autoriza_tratamiento_datos') == 'si'
+        estado_solicitado = request.form.get('estado_autorizacion') or ''
+        if estado_solicitado not in ('', 'rechazada'):
+            errores.append('El estado de autorización indicado no es válido.')
+        if confirma_autorizacion and estado_solicitado == 'rechazada':
+            errores.append('No puedes registrar una autorización y un rechazo al mismo tiempo.')
 
         if not errores:
             conexion = conectar()
             cursor = conexion.cursor()
             columnas_insert = ', '.join(CAMPOS)
             placeholders = ', '.join(['%s'] * len(CAMPOS))
+            fecha_autorizacion = _fecha_autorizacion_servidor() if confirma_autorizacion else None
+            estado_autorizacion = 'autorizada' if confirma_autorizacion else (estado_solicitado or None)
             cursor.execute(
-                f'INSERT INTO pacientes ({columnas_insert}, busqueda) '
-                f'VALUES ({placeholders}, %s) RETURNING id',
-                [nombres, apellidos] + valores_clinicos + [busqueda]
+                f'INSERT INTO pacientes ({columnas_insert}, busqueda, '
+                'autoriza_tratamiento_datos, fecha_autorizacion, version_politica, '
+                'texto_autorizacion_aceptado, estado_autorizacion) '
+                f'VALUES ({placeholders}, %s, %s, %s, %s, %s, %s) RETURNING id',
+                [nombres, apellidos] + valores_clinicos + [edad_es_estimada, busqueda, True if confirma_autorizacion else None,
+                 fecha_autorizacion,
+                 VERSION_POLITICA_DATOS if confirma_autorizacion else None,
+                 TEXTO_AUTORIZACION_DATOS if confirma_autorizacion else None,
+                 estado_autorizacion]
             )
             nuevo_id = cursor.fetchone()[0]
+            if confirma_autorizacion:
+                _registrar_autorizacion(cursor, nuevo_id, fecha_autorizacion)
             conexion.commit()
             conexion.close()
 
@@ -588,6 +890,10 @@ def nuevo():
         valores=request.form,
         modo='nuevo',
         paciente_id=None,
+        tiene_autorizacion=False,
+        texto_autorizacion=TEXTO_AUTORIZACION_DATOS,
+        version_politica=VERSION_POLITICA_DATOS,
+        today=date.today().isoformat(),
     )
 
 
@@ -605,23 +911,78 @@ def editar(paciente_id):
 
     columnas = [desc[0] for desc in cursor.description]
     valores = dict(zip(columnas, fila))
+    _actualizar_edad_calculada(valores)
+    if not _paciente_esta_activo(valores):
+        conexion.close()
+        flash('Este paciente está inactivo. Su información se conserva solo para consulta y no puede editarse.', 'error')
+        return redirect(url_for('index', estado='inactivos'))
+    valores_originales = valores.copy()
+    estado_original = _estado_autorizacion(valores_originales)
     errores = []
 
     if request.method == 'POST':
-        errores, nombres, apellidos, valores_clinicos, busqueda = _procesar_formulario(request.form)
+        errores, nombres, apellidos, valores_clinicos, busqueda, edad_es_estimada = _procesar_formulario(
+            request.form, valores_originales.get('edad_es_estimada')
+        )
         valores = request.form
+        confirma_autorizacion = request.form.get('autoriza_tratamiento_datos') == 'si'
+        estado_solicitado = request.form.get('estado_autorizacion') or ''
+
+        if estado_solicitado not in ('', 'rechazada', 'revocada'):
+            errores.append('El estado de autorización indicado no es válido.')
+        if confirma_autorizacion and estado_solicitado:
+            errores.append('No puedes registrar una autorización y otro estado al mismo tiempo.')
+        if estado_solicitado == 'revocada' and estado_original != 'autorizada':
+            errores.append('Solo puede registrarse una revocatoria cuando existe una autorización vigente.')
 
         if not errores:
             asignaciones = ', '.join(f'{c} = %s' for c in CAMPOS)
             cursor.execute(
                 f'UPDATE pacientes SET {asignaciones}, busqueda = %s WHERE id = %s',
-                [nombres, apellidos] + valores_clinicos + [busqueda, paciente_id]
+                [nombres, apellidos] + valores_clinicos + [edad_es_estimada, busqueda, paciente_id]
             )
+            # Un registro histórico continúa disponible sin presumir autorización.
+            # La autorización solo se registra tras una acción explícita del profesional.
+            if estado_original in ('sin_autorizacion_comprobable', 'rechazada') and confirma_autorizacion:
+                fecha_autorizacion = _fecha_autorizacion_servidor()
+                cursor.execute(
+                    '''UPDATE pacientes
+                       SET autoriza_tratamiento_datos = %s, fecha_autorizacion = %s,
+                           version_politica = %s, texto_autorizacion_aceptado = %s,
+                           estado_autorizacion = %s
+                       WHERE id = %s''',
+                    (True, fecha_autorizacion, VERSION_POLITICA_DATOS,
+                     TEXTO_AUTORIZACION_DATOS, 'autorizada', paciente_id)
+                )
+                _registrar_autorizacion(cursor, paciente_id, fecha_autorizacion)
+            elif estado_solicitado == 'rechazada' and estado_original == 'sin_autorizacion_comprobable':
+                cursor.execute(
+                    'UPDATE pacientes SET estado_autorizacion = %s WHERE id = %s',
+                    ('rechazada', paciente_id)
+                )
+            elif estado_solicitado == 'revocada':
+                # Se conserva la evidencia histórica de la autorización; el estado
+                # vigente indica que fue revocada y no altera aquella evidencia.
+                cursor.execute(
+                    'UPDATE pacientes SET estado_autorizacion = %s WHERE id = %s',
+                    ('revocada', paciente_id)
+                )
             conexion.commit()
             conexion.close()
-            return redirect(url_for('index', id=paciente_id))
+            # Volver al origen guardado en el form hidden, o al dashboard del paciente
+            volver = request.form.get('volver_url') or url_for('dashboard_paciente', paciente_id=paciente_id)
+            return redirect(volver)
 
     conexion.close()
+
+    # Determinar destino del botón Volver según origen
+    origen = request.args.get('origen', '')
+    if origen == 'lista':
+        volver_url = url_for('historia_clinica')
+    elif origen == 'pacientes':
+        volver_url = url_for('index')
+    else:
+        volver_url = url_for('dashboard_paciente', paciente_id=paciente_id)
 
     return render_template(
         'formulario_paciente_sivam.html',
@@ -631,18 +992,152 @@ def editar(paciente_id):
         valores=valores,
         modo='editar',
         paciente_id=paciente_id,
+        volver_url=volver_url,
+        estado_autorizacion=estado_original,
+        texto_autorizacion=TEXTO_AUTORIZACION_DATOS,
+        version_politica=VERSION_POLITICA_DATOS,
+        today=date.today().isoformat(),
+    )
+
+
+@app.route('/politica-tratamiento-datos')
+def politica_tratamiento_datos():
+    """Política pública, disponible antes de entregar la autorización."""
+    return render_template(
+        'politica_tratamiento_datos.html',
+        version_politica=VERSION_POLITICA_DATOS,
+        contacto_datos=os.getenv('CONTACTO_PROTECCION_DATOS') or 'pendiente de configuración institucional',
+        telefono_datos=os.getenv('TELEFONO_PROTECCION_DATOS') or 'pendiente de configuración institucional',
+        direccion_datos=os.getenv('DIRECCION_PROTECCION_DATOS') or 'pendiente de configuración institucional',
     )
 
 
 @app.route('/eliminar/<int:paciente_id>', methods=['POST'])
 @login_required
 def eliminar(paciente_id):
-    conexion = conectar()
-    cursor = conexion.cursor()
-    cursor.execute('DELETE FROM pacientes WHERE id = %s', (paciente_id,))
-    conexion.commit()
-    conexion.close()
+    conexion = None
+    try:
+        conexion = conectar()
+        cursor = conexion.cursor()
+        cursor.execute('SELECT activo FROM pacientes WHERE id = %s', (paciente_id,))
+        fila = cursor.fetchone()
+        if not fila:
+            flash('Paciente no encontrado.', 'error')
+            return redirect(url_for('index'))
+        if fila[0] in (False, 0, '0', 'false', 'False'):
+            flash('El paciente ya está inactivo; su información y trazabilidad se conservan.', 'error')
+            return redirect(url_for('index', estado='inactivos'))
+        cursor.execute(
+            'SELECT 1 FROM consentimientos_tratamiento_datos WHERE paciente_id = %s LIMIT 1',
+            (paciente_id,)
+        )
+        if cursor.fetchone():
+            flash('No se puede eliminar el paciente porque conserva una autorización de tratamiento de datos registrada.', 'error')
+            return redirect(url_for('index'))
+        cursor.execute('DELETE FROM pacientes WHERE id = %s', (paciente_id,))
+        conexion.commit()
+        flash('Paciente eliminado correctamente.', 'ok')
+    except sqlite3.OperationalError as error:
+        if conexion:
+            conexion.rollback()
+        if 'database is locked' in str(error).lower():
+            flash('No se pudo eliminar el paciente porque la base de datos está ocupada. Espera unos segundos e inténtalo nuevamente.', 'error')
+        else:
+            raise
+    except sqlite3.IntegrityError:
+        if conexion:
+            conexion.rollback()
+        flash('No se pudo eliminar el paciente porque conserva información protegida asociada.', 'error')
+    finally:
+        if conexion:
+            conexion.close()
     return redirect(url_for('index'))
+
+
+@app.route('/pacientes/<int:paciente_id>/inactivar', methods=['POST'])
+@login_required
+def inactivar_paciente(paciente_id):
+    """Retira un paciente de la operación diaria sin borrar su historia ni evidencia."""
+    conexion = None
+    try:
+        conexion = conectar()
+        cursor = conexion.cursor()
+        cursor.execute('SELECT activo FROM pacientes WHERE id = %s', (paciente_id,))
+        fila = cursor.fetchone()
+        if not fila:
+            flash('Paciente no encontrado.', 'error')
+            return redirect(url_for('index'))
+        if fila[0] in (False, 0, '0', 'false', 'False'):
+            flash('El paciente ya estaba inactivo.', 'error')
+            return redirect(url_for('index', estado='inactivos'))
+
+        cursor.execute(
+            'SELECT 1 FROM consentimientos_tratamiento_datos WHERE paciente_id = %s LIMIT 1',
+            (paciente_id,)
+        )
+        if not cursor.fetchone():
+            flash('Solo se inactivan pacientes con una autorización registrada. Este registro puede eliminarse si no tiene otras relaciones protegidas.', 'error')
+            return redirect(url_for('index', id=paciente_id))
+
+        cursor.execute(
+            '''UPDATE pacientes
+               SET activo = %s, fecha_inactivacion = %s, inactivado_por = %s
+               WHERE id = %s''',
+            (False, _fecha_autorizacion_servidor(), getattr(current_user, 'id', None), paciente_id)
+        )
+        conexion.commit()
+        flash('Paciente inactivado. Su historia clínica y la evidencia de autorización se conservan.', 'ok')
+        return redirect(url_for('index', estado='activos'))
+    except sqlite3.OperationalError as error:
+        if conexion:
+            conexion.rollback()
+        if 'database is locked' in str(error).lower():
+            flash('No se pudo inactivar el paciente porque la base de datos está ocupada. Espera unos segundos e inténtalo nuevamente.', 'error')
+        else:
+            raise
+    finally:
+        if conexion:
+            conexion.close()
+    return redirect(url_for('index', id=paciente_id))
+
+
+@app.route('/pacientes/<int:paciente_id>/reactivar', methods=['POST'])
+@login_required
+def reactivar_paciente(paciente_id):
+    """Devuelve un paciente inactivo a la operación clínica y deja trazabilidad."""
+    conexion = None
+    try:
+        conexion = conectar()
+        cursor = conexion.cursor()
+        cursor.execute('SELECT activo FROM pacientes WHERE id = %s', (paciente_id,))
+        fila = cursor.fetchone()
+        if not fila:
+            flash('Paciente no encontrado.', 'error')
+            return redirect(url_for('index'))
+        if fila[0] not in (False, 0, '0', 'false', 'False'):
+            flash('El paciente ya está activo.', 'error')
+            return redirect(url_for('index', id=paciente_id))
+
+        cursor.execute(
+            '''UPDATE pacientes
+               SET activo = %s, fecha_reactivacion = %s, reactivado_por = %s
+               WHERE id = %s''',
+            (True, _fecha_autorizacion_servidor(), getattr(current_user, 'id', None), paciente_id)
+        )
+        conexion.commit()
+        flash('Paciente reactivado. Puede volver a seleccionarse para atención y evaluaciones.', 'ok')
+        return redirect(url_for('index', estado='activos'))
+    except sqlite3.OperationalError as error:
+        if conexion:
+            conexion.rollback()
+        if 'database is locked' in str(error).lower():
+            flash('No se pudo reactivar el paciente porque la base de datos está ocupada. Espera unos segundos e inténtalo nuevamente.', 'error')
+        else:
+            raise
+    finally:
+        if conexion:
+            conexion.close()
+    return redirect(url_for('index', estado='inactivos'))
 
 
 # Rutas para selección de paciente y módulos
@@ -667,24 +1162,27 @@ def historia_clinica():
                      OR LOWER(barrio) LIKE %s
                      OR LOWER(riesgo_cardiovascular_con_riesgo_o_sin_riesgo) LIKE %s)'''
         params_filtro = (patron, patron, patron, patron)
-        cursor.execute(f'SELECT COUNT(*) FROM pacientes WHERE {filtro}', params_filtro)
+        cursor.execute(
+            f'SELECT COUNT(*) FROM pacientes WHERE ({filtro}) AND COALESCE(activo, TRUE) = TRUE',
+            params_filtro,
+        )
         total_filas = cursor.fetchone()[0]
         cursor.execute(
             f'''SELECT id, nombres, apellidos, edad, fecha_creacion, patologia_actual,
                       ejercicio_y_actividad_fisica_leve_moderado_intenso,
                       riesgo_cardiovascular_con_riesgo_o_sin_riesgo
-               FROM pacientes WHERE {filtro}
+               FROM pacientes WHERE ({filtro}) AND COALESCE(activo, TRUE) = TRUE
                ORDER BY apellidos, nombres LIMIT %s OFFSET %s''',
             params_filtro + (por_pagina, (pagina - 1) * por_pagina)
         )
     else:
-        cursor.execute('SELECT COUNT(*) FROM pacientes')
+        cursor.execute('SELECT COUNT(*) FROM pacientes WHERE COALESCE(activo, TRUE) = TRUE')
         total_filas = cursor.fetchone()[0]
         cursor.execute(
             '''SELECT id, nombres, apellidos, edad, patologia_actual,
                       ejercicio_y_actividad_fisica_leve_moderado_intenso,
                       riesgo_cardiovascular_con_riesgo_o_sin_riesgo
-               FROM pacientes
+               FROM pacientes WHERE COALESCE(activo, TRUE) = TRUE
                ORDER BY apellidos, nombres LIMIT %s OFFSET %s''',
             (por_pagina, (pagina - 1) * por_pagina)
         )
@@ -837,6 +1335,11 @@ def configuracion():
     total_pacientes = cursor.fetchone()[0]
     cursor.execute('SELECT COUNT(DISTINCT paciente_id) FROM test_moca')
     total_moca = cursor.fetchone()[0]
+    total_evaluaciones = 0
+    for tabla in ('antropometria', 'vo2_max', 'test_moca', 'test_tinetti',
+                  'test_chair_stand', 'caracterizacion_socioeconomica'):
+        cursor.execute(f'SELECT COUNT(*) FROM {tabla}')
+        total_evaluaciones += cursor.fetchone()[0]
     conexion.close()
 
     usuario = getattr(current_user, 'usuario', None)
@@ -847,6 +1350,8 @@ def configuracion():
         version='1.0.0',
         total_pacientes=total_pacientes,
         total_moca=total_moca,
+        total_evaluaciones=total_evaluaciones,
+        tipo_base='PostgreSQL / Supabase' if os.getenv('DATABASE_URL') else 'SQLite (local)',
         usuario=usuario,
         rol=rol,
     )
@@ -857,13 +1362,13 @@ def dashboard():
     conexion = conectar()
     cursor = conexion.cursor()
 
-    # Total pacientes
+    # El total conserva la visión histórica; la operación diaria usa activos.
     cursor.execute('SELECT COUNT(*) FROM pacientes')
     total_pacientes = cursor.fetchone()[0]
-
-    # Historias clínicas (todos los pacientes tienen historia clínica)
-    cursor.execute('SELECT COUNT(*) FROM pacientes')
-    total_historias = cursor.fetchone()[0]
+    cursor.execute('SELECT COUNT(*) FROM pacientes WHERE COALESCE(activo, TRUE) = TRUE')
+    pacientes_activos = cursor.fetchone()[0]
+    cursor.execute('SELECT COUNT(*) FROM pacientes WHERE COALESCE(activo, TRUE) = FALSE')
+    pacientes_inactivos = cursor.fetchone()[0]
 
     # Antropometría
     cursor.execute('SELECT COUNT(DISTINCT paciente_id) FROM antropometria')
@@ -927,7 +1432,8 @@ def dashboard():
     return render_template(
         'dashboard.html',
         total_pacientes=total_pacientes,
-        total_historias=total_historias,
+        pacientes_activos=pacientes_activos,
+        pacientes_inactivos=pacientes_inactivos,
         total_antropometria=total_antropometria,
         total_vo2=total_vo2,
         total_chair_stand=total_chair_stand,
@@ -955,6 +1461,13 @@ def seleccionar_paciente():
     if request.method == 'POST':
         paciente_id = request.form.get('paciente_id', type=int)
         if paciente_id:
+            conexion = conectar()
+            cursor = conexion.cursor()
+            disponible = _paciente_activo_en_bd(cursor, paciente_id)
+            conexion.close()
+            if not disponible:
+                flash('Este paciente está inactivo y no puede seleccionarse para registrar nuevas evaluaciones.', 'error')
+                return redirect(url_for('seleccionar_paciente', modulo=siguiente_modulo, q=query or None))
             # Guardar paciente en sesión para usar en siguiente módulo
             from flask import session
             session['paciente_seleccionado_id'] = paciente_id
@@ -975,7 +1488,7 @@ def seleccionar_paciente():
         patron = f'%{normalizar(query)}%'
         cursor.execute(
             '''SELECT id, nombres, apellidos FROM pacientes
-               WHERE busqueda LIKE %s
+               WHERE busqueda LIKE %s AND COALESCE(activo, TRUE) = TRUE
                ORDER BY apellidos, nombres LIMIT 20''',
             (patron,)
         )
@@ -1032,7 +1545,7 @@ def antropometria():
 
     columnas_select = '''p.id, p.nombres, p.apellidos, p.edad, a.sexo, a.talla, a.peso, a.imc,
                    a.porcentaje_grasa_corporal, a.circunferencia_cintura, a.circunferencia_cadera,
-                   a.riesgo_cardiovascular, a.sarcopenia, a.fecha_examen'''
+                   a.riesgo_cardiovascular, a.sarcopenia, a.evaluador, a.fecha_examen'''
 
     if query:
         patron = f'%{normalizar(query)}%'
@@ -1104,7 +1617,13 @@ def antropometria():
 @app.route('/registrar_modulo/<modulo>/<int:paciente_id>')
 @login_required
 def registrar_modulo(modulo, paciente_id):
-    """Fija el paciente en sesión y redirige al formulario del módulo."""
+    """Fija el paciente en sesión y redirige al formulario del módulo.
+
+    El parámetro opcional ?origen= indica desde dónde se llegó:
+      - 'dashboard' → volver al dashboard del paciente
+      - 'lista' (o cualquier otro valor) → volver a la lista del módulo
+    Por defecto, si no se indica, se vuelve a la lista del módulo.
+    """
     from flask import session
     modulos_validos = {
         'antropometria': 'antropometria_formulario',
@@ -1114,12 +1633,38 @@ def registrar_modulo(modulo, paciente_id):
         'test_chair_stand': 'test_chair_stand_formulario',
         'caracterizacion': 'caracterizacion_socioeconomica',
     }
+    # Rutas de lista por módulo (para volver a la lista correspondiente)
+    listas_modulos = {
+        'antropometria': 'antropometria',
+        'vo2_max': 'vo2_max',
+        'test_moca': 'test_moca',
+        'test_tinetti': 'test_tinetti',
+        'test_chair_stand': 'test_chair_stand',
+        'caracterizacion': 'caracterizacion',
+    }
     destino = modulos_validos.get(modulo)
     if not destino:
         return redirect(url_for('index'))
+
+    conexion = conectar()
+    cursor = conexion.cursor()
+    disponible = _paciente_activo_en_bd(cursor, paciente_id)
+    conexion.close()
+    if not disponible:
+        flash('Este paciente está inactivo y no puede recibir nuevas evaluaciones.', 'error')
+        return redirect(url_for('index', estado='inactivos'))
+
+    origen = request.args.get('origen', 'lista')
+    if origen == 'dashboard':
+        volver = url_for('dashboard_paciente', paciente_id=paciente_id)
+    elif origen == 'pacientes':
+        volver = url_for('index')
+    else:
+        lista_route = listas_modulos.get(modulo)
+        volver = url_for(lista_route) if lista_route else url_for('index')
+
     session['paciente_seleccionado_id'] = paciente_id
-    # Se llegó al formulario desde la ficha/dashboard: volver ahí (a la ficha del paciente)
-    session['volver_formulario_url'] = url_for('index', id=paciente_id)
+    session['volver_formulario_url'] = volver
     return redirect(url_for(destino))
 
 
@@ -1131,7 +1676,7 @@ def _pendientes_de(tabla):
         SELECT p.id, p.nombres, p.apellidos, p.sexo
         FROM pacientes p
         LEFT JOIN {tabla} t ON p.id = t.paciente_id
-        WHERE t.id IS NULL
+        WHERE t.id IS NULL AND COALESCE(p.activo, TRUE) = TRUE
         ORDER BY p.apellidos, p.nombres
     ''')
     filas = cursor.fetchall()
@@ -1191,7 +1736,7 @@ def antropometria_pendientes():
         SELECT p.id, p.nombres, p.apellidos, p.sexo
         FROM pacientes p
         LEFT JOIN antropometria a ON p.id = a.paciente_id
-        WHERE a.id IS NULL
+        WHERE a.id IS NULL AND COALESCE(p.activo, TRUE) = TRUE
         ORDER BY p.apellidos, p.nombres
     ''')
     filas = cursor.fetchall()
@@ -1222,7 +1767,7 @@ def antropometria_formulario():
     conexion = conectar()
     cursor = conexion.cursor()
 
-    cursor.execute('SELECT * FROM pacientes WHERE id = %s', (paciente_id,))
+    cursor.execute('SELECT * FROM pacientes WHERE id = %s AND COALESCE(activo, TRUE) = TRUE', (paciente_id,))
     paciente = cursor.fetchone()
     if not paciente:
         session.pop('paciente_seleccionado_id', None)
@@ -1230,6 +1775,7 @@ def antropometria_formulario():
 
     columnas = [desc[0] for desc in cursor.description]
     paciente_dict = dict(zip(columnas, paciente))
+    _actualizar_edad_calculada(paciente_dict)
 
     cursor.execute('SELECT * FROM antropometria WHERE paciente_id = %s', (paciente_id,))
     antropometria_existente = cursor.fetchone()
@@ -1245,10 +1791,15 @@ def antropometria_formulario():
                  'circunferencia_cuadriceps', 'circunferencia_pantorrilla',
                  'circunferencia_brazo', 'fuerza_lado_derecho', 'fuerza_lado_izquierdo',
                  'anchura_brazo', 'anchura_muneca', 'anchura_rodilla',
-                 'riesgo_cardiovascular', 'sarcopenia', 'fecha_examen']
+                 'riesgo_cardiovascular', 'sarcopenia', 'evaluador', 'fecha_examen']
 
-        # Campos vacíos -> None para no romper columnas NUMERIC/DATE ni los CHECK
+        # Campos vacíos -> None para no romper columnas NUMERIC/DATE ni los CHECK.
+        # El sexo pertenece a la historia clínica: nunca se toma de este formulario.
         valores_form = {campo: (request.form.get(campo) or None) for campo in campos}
+        valores_form['sexo'] = paciente_dict.get('sexo') or None
+        valores_form['evaluador'] = (
+            request.form.get('evaluador', '').strip() or _evaluador_activo() or None
+        )
 
         if antropometria_existente:
             asignaciones = ', '.join(f'{c} = %s' for c in campos if c != 'id')
@@ -1267,11 +1818,12 @@ def antropometria_formulario():
 
         conexion.commit()
         conexion.close()
-        return redirect(url_for('antropometria'))
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('antropometria')
+        return redirect(volver)
 
     conexion.close()
 
-    volver_url = session.get('volver_formulario_url') or url_for('index', id=paciente_id)
+    volver_url = session.pop('volver_formulario_url', None) or url_for('antropometria')
 
     return render_template(
         'antropometria.html',
@@ -1319,7 +1871,7 @@ def vo2_max():
     por_pagina = 10
 
     cols = '''p.id, p.nombres, p.apellidos, v.edad, v.ta, v.fc, v.fc_max, v.spo2,
-                   v.vo2_max, v.resultado, v.observaciones'''
+                   v.vo2_max, v.resultado, v.evaluador, v.observaciones'''
 
     if query:
         patron = f'%{normalizar(query)}%'
@@ -1380,7 +1932,7 @@ def vo2_max_formulario():
     conexion = conectar()
     cursor = conexion.cursor()
 
-    cursor.execute('SELECT * FROM pacientes WHERE id = %s', (paciente_id,))
+    cursor.execute('SELECT * FROM pacientes WHERE id = %s AND COALESCE(activo, TRUE) = TRUE', (paciente_id,))
     paciente = cursor.fetchone()
     if not paciente:
         session.pop('paciente_seleccionado_id', None)
@@ -1388,6 +1940,7 @@ def vo2_max_formulario():
 
     columnas = [desc[0] for desc in cursor.description]
     paciente_dict = dict(zip(columnas, paciente))
+    _actualizar_edad_calculada(paciente_dict)
 
     cursor.execute('SELECT * FROM vo2_max WHERE paciente_id = %s', (paciente_id,))
     vo2_existente = cursor.fetchone()
@@ -1397,9 +1950,12 @@ def vo2_max_formulario():
         valores = dict(zip(columnas_vo2, vo2_existente))
 
     if request.method == 'POST':
-        campos = ['edad', 'ta', 'fc', 'fc_max', 'spo2', 'vo2_max', 'resultado', 'observaciones', 'fecha_examen']
+        campos = ['edad', 'ta', 'fc', 'fc_max', 'spo2', 'vo2_max', 'resultado', 'evaluador', 'observaciones', 'fecha_examen']
         # Campos vacíos -> None para no romper columnas NUMERIC/INTEGER/DATE
         valores_form = {campo: (request.form.get(campo) or None) for campo in campos}
+        valores_form['evaluador'] = (
+            request.form.get('evaluador', '').strip() or _evaluador_activo() or None
+        )
 
         # El resultado cualitativo NO se ingresa manualmente: se calcula en el
         # backend con el VO2 Max, la edad y el sexo del paciente (escala Cooper/ACSM).
@@ -1426,11 +1982,12 @@ def vo2_max_formulario():
 
         conexion.commit()
         conexion.close()
-        return redirect(url_for('vo2_max'))
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('vo2_max')
+        return redirect(volver)
 
     conexion.close()
 
-    volver_url = session.get('volver_formulario_url') or url_for('index', id=paciente_id)
+    volver_url = session.pop('volver_formulario_url', None) or url_for('vo2_max')
 
     return render_template('vo2_max.html', paciente=paciente_dict, valores=valores,
                            existe=bool(vo2_existente), volver_url=volver_url)
@@ -1533,7 +2090,7 @@ def test_moca_formulario():
     conexion = conectar()
     cursor = conexion.cursor()
 
-    cursor.execute('SELECT * FROM pacientes WHERE id = %s', (paciente_id,))
+    cursor.execute('SELECT * FROM pacientes WHERE id = %s AND COALESCE(activo, TRUE) = TRUE', (paciente_id,))
     paciente = cursor.fetchone()
     if not paciente:
         session.pop('paciente_seleccionado_id', None)
@@ -1541,6 +2098,7 @@ def test_moca_formulario():
 
     columnas = [desc[0] for desc in cursor.description]
     paciente_dict = dict(zip(columnas, paciente))
+    _actualizar_edad_calculada(paciente_dict)
 
     cursor.execute('SELECT * FROM test_moca WHERE paciente_id = %s', (paciente_id,))
     test_existente = cursor.fetchone()
@@ -1593,7 +2151,7 @@ def test_moca_formulario():
                 return None
 
         indice_memoria = _int_opt('indice_memoria')
-        evaluador = request.form.get('evaluador') or None
+        evaluador = request.form.get('evaluador', '').strip() or _evaluador_activo() or None
         observaciones = request.form.get('observaciones') or None
         fecha_examen = request.form.get('fecha_examen') or None
 
@@ -1623,11 +2181,12 @@ def test_moca_formulario():
 
         conexion.commit()
         conexion.close()
-        return redirect(url_for('test_moca'))
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('test_moca')
+        return redirect(volver)
 
     conexion.close()
 
-    volver_url = session.get('volver_formulario_url') or url_for('index', id=paciente_id)
+    volver_url = session.pop('volver_formulario_url', None) or url_for('test_moca')
     return render_template('test_moca.html', paciente=paciente_dict, valores=valores,
                            existe=bool(test_existente), volver_url=volver_url)
 
@@ -1728,7 +2287,7 @@ def test_tinetti_formulario():
     conexion = conectar()
     cursor = conexion.cursor()
 
-    cursor.execute('SELECT * FROM pacientes WHERE id = %s', (paciente_id,))
+    cursor.execute('SELECT * FROM pacientes WHERE id = %s AND COALESCE(activo, TRUE) = TRUE', (paciente_id,))
     paciente = cursor.fetchone()
     if not paciente:
         session.pop('paciente_seleccionado_id', None)
@@ -1736,6 +2295,7 @@ def test_tinetti_formulario():
 
     columnas = [desc[0] for desc in cursor.description]
     paciente_dict = dict(zip(columnas, paciente))
+    _actualizar_edad_calculada(paciente_dict)
 
     cursor.execute('SELECT * FROM test_tinetti WHERE paciente_id = %s', (paciente_id,))
     test_existente = cursor.fetchone()
@@ -1772,7 +2332,7 @@ def test_tinetti_formulario():
         else:
             resultado = 'Alto Riesgo'
 
-        evaluador = request.form.get('evaluador') or None
+        evaluador = request.form.get('evaluador', '').strip() or _evaluador_activo() or None
         observaciones = request.form.get('observaciones') or None
         fecha_examen = request.form.get('fecha_examen') or None
 
@@ -1803,11 +2363,12 @@ def test_tinetti_formulario():
 
         conexion.commit()
         conexion.close()
-        return redirect(url_for('test_tinetti'))
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('test_tinetti')
+        return redirect(volver)
 
     conexion.close()
 
-    volver_url = session.get('volver_formulario_url') or url_for('index', id=paciente_id)
+    volver_url = session.pop('volver_formulario_url', None) or url_for('test_tinetti')
     return render_template('test_tinetti.html', paciente=paciente_dict, valores=valores,
                            existe=bool(test_existente), volver_url=volver_url)
 
@@ -1911,7 +2472,7 @@ def test_chair_stand_formulario():
     conexion = conectar()
     cursor = conexion.cursor()
 
-    cursor.execute('SELECT * FROM pacientes WHERE id = %s', (paciente_id,))
+    cursor.execute('SELECT * FROM pacientes WHERE id = %s AND COALESCE(activo, TRUE) = TRUE', (paciente_id,))
     paciente = cursor.fetchone()
     if not paciente:
         session.pop('paciente_seleccionado_id', None)
@@ -1919,6 +2480,7 @@ def test_chair_stand_formulario():
 
     columnas = [desc[0] for desc in cursor.description]
     paciente_dict = dict(zip(columnas, paciente))
+    _actualizar_edad_calculada(paciente_dict)
 
     cursor.execute('SELECT * FROM test_chair_stand WHERE paciente_id = %s', (paciente_id,))
     test_existente = cursor.fetchone()
@@ -1933,17 +2495,20 @@ def test_chair_stand_formulario():
         except (TypeError, ValueError):
             repeticiones = 0
 
+        evaluador = request.form.get('evaluador', '').strip() or _evaluador_activo() or None
+        observaciones = request.form.get('observaciones') or None
+        fecha_examen = request.form.get('fecha_examen') or None
+        # La edad queda fijada con la evaluación para que el resultado histórico
+        # no cambie solo porque el paciente cumple años.
+        edad_evaluacion = valores.get('edad_evaluacion') if valores.get('edad_evaluacion') is not None else _edad_para_evaluacion(paciente_dict, fecha_examen)
+
         # Clasificación clínica: cruza repeticiones con el rango normal por
         # edad y sexo del paciente (Senior Fitness Test), no una escala fija.
         resultado, percentil = clasificar_chair_stand(
             repeticiones,
-            paciente_dict.get('edad'),
+            edad_evaluacion,
             paciente_dict.get('sexo'),
         )
-
-        evaluador = request.form.get('evaluador') or None
-        observaciones = request.form.get('observaciones') or None
-        fecha_examen = request.form.get('fecha_examen') or None
 
         if test_existente:
             cursor.execute(
@@ -1955,18 +2520,19 @@ def test_chair_stand_formulario():
         else:
             cursor.execute(
                 '''INSERT INTO test_chair_stand
-                   (paciente_id, repeticiones, percentil, resultado, evaluador, observaciones, fecha_examen)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s)''',
-                (paciente_id, repeticiones, percentil, resultado, evaluador, observaciones, fecha_examen)
+                   (paciente_id, repeticiones, percentil, resultado, evaluador, observaciones, fecha_examen, edad_evaluacion)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
+                (paciente_id, repeticiones, percentil, resultado, evaluador, observaciones, fecha_examen, edad_evaluacion)
             )
 
         conexion.commit()
         conexion.close()
-        return redirect(url_for('test_chair_stand'))
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('test_chair_stand')
+        return redirect(volver)
 
     conexion.close()
 
-    volver_url = session.get('volver_formulario_url') or url_for('index', id=paciente_id)
+    volver_url = session.pop('volver_formulario_url', None) or url_for('test_chair_stand')
     return render_template('test_chair_stand.html', paciente=paciente_dict, valores=valores,
                            existe=bool(test_existente), volver_url=volver_url)
 
@@ -1992,7 +2558,7 @@ def caracterizacion():
     por_pagina = 10
 
     cols = '''p.id, p.nombres, p.apellidos, p.edad, c.escolaridad, c.vivienda,
-              c.con_quien_convive, c.estado_socioeconomico, c.fecha_examen'''
+              c.con_quien_convive, c.estado_socioeconomico, c.evaluador, c.fecha_examen'''
 
     if query:
         patron = f'%{normalizar(query)}%'
@@ -2048,7 +2614,7 @@ def caracterizacion_socioeconomica():
     conexion = conectar()
     cursor = conexion.cursor()
 
-    cursor.execute('SELECT * FROM pacientes WHERE id = %s', (paciente_id,))
+    cursor.execute('SELECT * FROM pacientes WHERE id = %s AND COALESCE(activo, TRUE) = TRUE', (paciente_id,))
     paciente = cursor.fetchone()
     if not paciente:
         session.pop('paciente_seleccionado_id', None)
@@ -2065,8 +2631,11 @@ def caracterizacion_socioeconomica():
         valores = dict(zip(columnas_caract, caract_existente))
 
     if request.method == 'POST':
-        campos = ['escolaridad', 'vivienda', 'con_quien_convive', 'estado_socioeconomico', 'fecha_examen']
+        campos = ['escolaridad', 'vivienda', 'con_quien_convive', 'estado_socioeconomico', 'evaluador', 'fecha_examen']
         valores_form = {campo: (request.form.get(campo) or None) for campo in campos}
+        valores_form['evaluador'] = (
+            request.form.get('evaluador', '').strip() or _evaluador_activo() or None
+        )
 
         if caract_existente:
             asignaciones = ', '.join(f'{c} = %s' for c in campos if c != 'id')
@@ -2085,11 +2654,12 @@ def caracterizacion_socioeconomica():
 
         conexion.commit()
         conexion.close()
-        return redirect(url_for('index', id=paciente_id))
+        volver = request.form.get('volver_url') or session.pop('volver_formulario_url', None) or url_for('caracterizacion')
+        return redirect(volver)
 
     conexion.close()
 
-    volver_url = session.get('volver_formulario_url') or url_for('index', id=paciente_id)
+    volver_url = session.pop('volver_formulario_url', None) or url_for('caracterizacion')
     return render_template('caracterizacion_socioeconomica.html', paciente=paciente_dict, valores=valores,
                            existe=bool(caract_existente), volver_url=volver_url)
 
@@ -2099,4 +2669,5 @@ if __name__ == '__main__':
     # ejecuta este bloque. El puerto se toma de la variable PORT si existe.
     puerto = int(os.getenv('PORT', 5000))
     debug = os.getenv('FLASK_DEBUG', 'true').lower() == 'true'
-    app.run(host='0.0.0.0', port=puerto, debug=debug)
+    app.run(host='0.0.0.0', port=puerto, debug=debug,
+            exclude_patterns=['scripts/*', 'data/*', 'docs/*'])

@@ -100,6 +100,7 @@ _MODULOS = [
             ('anchura_rodilla', 'Anchura rodilla', 'anchura_rodilla'),
             ('riesgo_cardiovascular', 'Riesgo cardiovascular (antropometría)', 'antro_riesgo_cardiovascular'),
             ('sarcopenia', 'Sarcopenia', 'sarcopenia'),
+            ('evaluador', 'Evaluador Antropometría', 'antro_evaluador'),
             ('fecha_examen', 'Fecha examen (antropometría)', 'antro_fecha_examen'),
         ],
     },
@@ -114,6 +115,7 @@ _MODULOS = [
             ('spo2', 'SpO2', 'vo2_spo2'),
             ('vo2_max', 'VO2 Max', 'vo2_max'),
             ('resultado', 'Resultado VO2', 'vo2_resultado'),
+            ('evaluador', 'Evaluador VO2', 'vo2_evaluador'),
             ('observaciones', 'Observaciones VO2', 'vo2_observaciones'),
             ('fecha_examen', 'Fecha examen (VO2)', 'vo2_fecha_examen'),
         ],
@@ -157,6 +159,7 @@ _MODULOS = [
         'tabla': 'test_chair_stand',
         'seccion': 'Test Chair Stand',
         'columnas': [
+            ('edad_evaluacion', 'Edad al evaluar', 'chairstand_edad_evaluacion'),
             ('resultado', 'Resultado Chair Stand', 'chairstand_resultado'),
             ('repeticiones', 'Repeticiones', 'chairstand_repeticiones'),
             ('percentil', 'Percentil', 'chairstand_percentil'),
@@ -174,6 +177,7 @@ _MODULOS = [
             ('vivienda', 'Vivienda', 'vivienda'),
             ('con_quien_convive', 'Con quién convive', 'con_quien_convive'),
             ('estado_socioeconomico', 'Estado socioeconómico', 'estado_socioeconomico'),
+            ('evaluador', 'Evaluador Caracterización', 'caracterizacion_evaluador'),
             ('fecha_examen', 'Fecha examen (Caracterización)', 'caracterizacion_fecha_examen'),
         ],
     },
@@ -192,7 +196,7 @@ _COLUMNAS_VISIBLES_INDIVIDUAL = {
     'vo2_max': ['resultado', 'observaciones', 'evaluador', 'fecha_examen'],
     'test_moca': ['resultado', 'observaciones', 'evaluador', 'fecha_examen'],
     'test_tinetti': ['resultado', 'observaciones', 'evaluador', 'fecha_examen'],
-    'test_chair_stand': ['resultado', 'observaciones', 'evaluador', 'fecha_examen'],
+    'test_chair_stand': ['edad_evaluacion', 'resultado', 'observaciones', 'evaluador', 'fecha_examen'],
 }
 
 # Etiquetas simplificadas para las filas visibles del individual.
@@ -465,7 +469,9 @@ def generar_excel_individual(paciente_id):
             if tabla in ('vo2_max', 'test_chair_stand'):
                 datos_grafica = dict(datos)
                 datos_grafica.setdefault('sexo', datos_hist.get('sexo'))
-                if datos_grafica.get('edad') in (None, ''):
+                if tabla == 'test_chair_stand' and datos_grafica.get('edad_evaluacion') not in (None, ''):
+                    datos_grafica['edad'] = datos_grafica['edad_evaluacion']
+                elif datos_grafica.get('edad') in (None, ''):
                     datos_grafica['edad'] = datos_hist.get('edad')
             png = graficas.GRAFICA_POR_TABLA[tabla](datos_grafica)
             if png is not None:

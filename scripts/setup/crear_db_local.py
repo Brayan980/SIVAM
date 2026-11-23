@@ -31,6 +31,10 @@ CREATE TABLE IF NOT EXISTS pacientes (
     apellidos TEXT,
     edad INTEGER,
     fecha_de_nacimiento TEXT,
+    edad_es_estimada INTEGER CHECK (edad_es_estimada IN (0, 1)),
+    tipo_documento TEXT,
+    numero_documento TEXT,
+    telefono TEXT,
     sexo TEXT,
     barrio TEXT,
     antecedentes_familiares TEXT,
@@ -45,8 +49,36 @@ CREATE TABLE IF NOT EXISTS pacientes (
     ejercicio_y_actividad_fisica_leve_moderado_intenso TEXT,
     actividad_sexual TEXT,
     riesgo_cardiovascular_con_riesgo_o_sin_riesgo TEXT,
-    busqueda TEXT
+    busqueda TEXT,
+    autoriza_tratamiento_datos INTEGER CHECK (autoriza_tratamiento_datos IN (0, 1)),
+    fecha_autorizacion TEXT,
+    version_politica TEXT,
+    texto_autorizacion_aceptado TEXT,
+    estado_autorizacion TEXT CHECK (estado_autorizacion IN ('autorizada', 'sin_autorizacion_comprobable', 'rechazada', 'revocada')),
+    activo INTEGER NOT NULL DEFAULT 1 CHECK (activo IN (0, 1)),
+    fecha_inactivacion TEXT,
+    inactivado_por INTEGER REFERENCES usuarios(id),
+    fecha_reactivacion TEXT,
+    reactivado_por INTEGER REFERENCES usuarios(id)
 );
+
+CREATE TABLE IF NOT EXISTS consentimientos_tratamiento_datos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    paciente_id INTEGER NOT NULL REFERENCES pacientes(id) ON DELETE RESTRICT,
+    autoriza_tratamiento_datos INTEGER NOT NULL CHECK (autoriza_tratamiento_datos = 1),
+    fecha_autorizacion TEXT NOT NULL,
+    version_politica TEXT NOT NULL,
+    texto_autorizacion_aceptado TEXT NOT NULL,
+    registrado_por INTEGER REFERENCES usuarios(id),
+    fecha_registro TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TRIGGER IF NOT EXISTS consentimientos_solo_insercion_actualizar
+BEFORE UPDATE ON consentimientos_tratamiento_datos
+BEGIN SELECT RAISE(ABORT, 'La evidencia de consentimiento no puede modificarse'); END;
+CREATE TRIGGER IF NOT EXISTS consentimientos_solo_insercion_eliminar
+BEFORE DELETE ON consentimientos_tratamiento_datos
+BEGIN SELECT RAISE(ABORT, 'La evidencia de consentimiento no puede eliminarse'); END;
 
 CREATE TABLE IF NOT EXISTS antropometria (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -68,6 +100,7 @@ CREATE TABLE IF NOT EXISTS antropometria (
     anchura_rodilla REAL,
     riesgo_cardiovascular TEXT,
     sarcopenia TEXT,
+    evaluador TEXT,
     fecha_examen TEXT,
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     creado_por INTEGER REFERENCES usuarios(id)
@@ -77,7 +110,7 @@ CREATE TABLE IF NOT EXISTS vo2_max (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     paciente_id INTEGER NOT NULL REFERENCES pacientes(id) ON DELETE CASCADE,
     edad INTEGER, ta TEXT, fc TEXT, fc_max REAL, spo2 REAL, vo2_max REAL,
-    resultado TEXT, observaciones TEXT,
+    resultado TEXT, evaluador TEXT, observaciones TEXT,
     fecha_examen TEXT,
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     creado_por INTEGER REFERENCES usuarios(id)
@@ -126,6 +159,7 @@ CREATE TABLE IF NOT EXISTS test_chair_stand (
     evaluador TEXT,
     observaciones TEXT,
     fecha_examen TEXT,
+    edad_evaluacion INTEGER,
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     creado_por INTEGER REFERENCES usuarios(id)
 );
@@ -137,6 +171,7 @@ CREATE TABLE IF NOT EXISTS caracterizacion_socioeconomica (
     vivienda TEXT,
     con_quien_convive TEXT,
     estado_socioeconomico TEXT,
+    evaluador TEXT,
     fecha_examen TEXT,
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     creado_por INTEGER REFERENCES usuarios(id)

@@ -1,6 +1,6 @@
 {% extends "base_sivam.html" %}
 
-{% block title %}VO2 Max · SIVAM - CECAR{% endblock %}
+{% block title %}VO2 Max · SIVAM{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -129,6 +129,7 @@
           <th>SpO2</th>
           <th>VO2 Max</th>
           <th>Resultado</th>
+          <th>Evaluador</th>
           <th class="col-acciones">Acciones</th>
         </tr>
       </thead>
@@ -149,6 +150,7 @@
               <span class="badge-clasif {{ clase }}">{{ r.resultado }}</span>
             {% else %}-{% endif %}
           </td>
+          <td>{{ r.evaluador if r.evaluador else '-' }}</td>
           <td class="col-acciones">
             <button type="button" class="accion-btn accion-ver" title="Ver ficha"
                     onclick="verPaciente({{ r.id }})"><i class="fas fa-eye"></i></button>

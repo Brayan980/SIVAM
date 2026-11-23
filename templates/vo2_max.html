@@ -1,6 +1,6 @@
 {% extends "base_sivam.html" %}
 
-{% block title %}VO2 Max · SIVAM - CECAR{% endblock %}
+{% block title %}VO2 Max · SIVAM{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -23,14 +23,18 @@
 {% endif %}
 
 <form method="post" class="hc-form">
-
-  {# ===== Signos Vitales ===== #}
+  <input type="hidden" name="volver_url" value="{{ volver_url }}">
   <section class="form-seccion">
     <h3 class="form-seccion-titulo"><i class="fas fa-heartbeat"></i> Signos Vitales</h3>
     <div class="form-grid">
       <div class="campo-sivam">
         <label for="fecha_examen">Fecha del examen</label>
         <input type="date" id="fecha_examen" name="fecha_examen" value="{{ valores.get('fecha_examen') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="evaluador">Evaluador</label>
+        <input type="text" id="evaluador" name="evaluador" placeholder="Nombre del evaluador"
+               value="{{ valores.get('evaluador') or evaluador_default }}" required>
       </div>
       <div class="campo-sivam">
         <label for="edad">Edad</label>

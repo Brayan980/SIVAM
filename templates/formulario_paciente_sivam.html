@@ -1,6 +1,6 @@
 {% extends "base_sivam.html" %}
 
-{% block title %}{{ 'Editar Historia Clínica' if modo == 'editar' else 'Nueva Historia Clínica' }} · SIVAM - CECAR{% endblock %}
+{% block title %}{{ 'Editar Historia Clínica' if modo == 'editar' else 'Nueva Historia Clínica' }} · SIVAM{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -16,7 +16,7 @@
 </div>
 
 {% if modo == 'editar' %}
-  <a class="volver-sivam" href="/?id={{ paciente_id }}">&larr; Volver a la ficha</a>
+  <a class="volver-sivam" href="{{ volver_url or '/historia_clinica' }}">&larr; Volver</a>
 {% else %}
   <a class="volver-sivam" href="/historia_clinica">&larr; Volver</a>
 {% endif %}
@@ -28,6 +28,7 @@
 {% endif %}
 
 <form method="post" class="hc-form" action="{{ '/editar/' ~ paciente_id if modo == 'editar' else '/nuevo' }}">
+  <input type="hidden" name="volver_url" value="{{ volver_url or '' }}">
 
   {# ===== Datos del Paciente ===== #}
   <section class="form-seccion">
@@ -42,12 +43,35 @@
         <input type="text" id="apellidos" name="apellidos" value="{{ valores.get('apellidos') or '' }}" required>
       </div>
       <div class="campo-sivam">
-        <label for="edad">Edad</label>
-        <input type="number" min="0" max="120" id="edad" name="edad" value="{{ valores.get('edad') or '' }}">
+        <label for="fecha_de_nacimiento">Fecha de nacimiento</label>
+        <input type="date" id="fecha_de_nacimiento" name="fecha_de_nacimiento" value="{{ valores.get('fecha_de_nacimiento') or '' }}" max="{{ today }}">
+        <label class="consentimiento-checkbox" for="fecha_nacimiento_desconocida">
+          <input type="checkbox" id="fecha_nacimiento_desconocida" name="fecha_nacimiento_desconocida" value="si"
+            {% if valores.get('fecha_nacimiento_desconocida') == 'si' or valores.get('edad_es_estimada') in (1, true, '1') %}checked{% endif %}>
+          <span>No se conoce la fecha de nacimiento</span>
+        </label>
       </div>
       <div class="campo-sivam">
-        <label for="fecha_de_nacimiento">Fecha de nacimiento</label>
-        <input type="date" id="fecha_de_nacimiento" name="fecha_de_nacimiento" value="{{ valores.get('fecha_de_nacimiento') or '' }}">
+        <label for="edad" id="etiqueta-edad">{% if valores.get('edad_es_estimada') in (1, true, '1') %}Edad estimada{% else %}Edad{% endif %}</label>
+        <input type="number" min="0" max="130" step="1" id="edad" name="edad" value="{{ valores.get('edad') or '' }}" readonly>
+      </div>
+      <div class="campo-sivam">
+        <label for="tipo_documento">Tipo de documento</label>
+        <select id="tipo_documento" name="tipo_documento">
+          <option value="">Selecciona...</option>
+          <option value="CC" {{ 'selected' if valores.get('tipo_documento') == 'CC' }}>Cédula de ciudadanía</option>
+          <option value="TI" {{ 'selected' if valores.get('tipo_documento') == 'TI' }}>Tarjeta de identidad</option>
+          <option value="CE" {{ 'selected' if valores.get('tipo_documento') == 'CE' }}>Cédula de extranjería</option>
+          <option value="Pasaporte" {{ 'selected' if valores.get('tipo_documento') == 'Pasaporte' }}>Pasaporte</option>
+        </select>
+      </div>
+      <div class="campo-sivam">
+        <label for="numero_documento">Número de documento</label>
+        <input type="text" id="numero_documento" name="numero_documento" maxlength="40" value="{{ valores.get('numero_documento') or '' }}">
+      </div>
+      <div class="campo-sivam">
+        <label for="telefono">Teléfono</label>
+        <input type="tel" id="telefono" name="telefono" maxlength="40" value="{{ valores.get('telefono') or '' }}">
       </div>
       <div class="campo-sivam">
         <label for="sexo">Sexo</label>
@@ -137,6 +161,44 @@
     </div>
   </section>
 
+  {# La evidencia aceptada no se edita: el registro de auditoría conserva el texto y fecha originales. #}
+  <section class="form-seccion privacidad-seccion" aria-labelledby="titulo-privacidad">
+    <h3 id="titulo-privacidad" class="form-seccion-titulo"><i class="fas fa-shield-heart"></i> Autorización de tratamiento de datos</h3>
+    <p class="privacidad-aviso"><strong>Aviso de privacidad:</strong> La entidad, por medio del área encargada, es responsable del tratamiento de los datos recolectados en SIVAM para valoración, seguimiento y gestión institucional o investigativa autorizada. Conoce las finalidades, tus derechos y el procedimiento para ejercerlos en la <a href="{{ url_for('politica_tratamiento_datos') }}" target="_blank" rel="noopener">Política de Tratamiento de Datos Personales</a>.</p>
+    <p class="privacidad-aviso">Las respuestas sobre datos de salud y condición física son facultativas. Puedes conocer, actualizar, rectificar, suprimir tus datos o revocar la autorización mediante los canales indicados en la política.</p>
+
+    {% if estado_autorizacion == 'autorizada' %}
+      <div class="consentimiento-registrado" role="status">
+        <i class="fas fa-circle-check"></i>
+        <span>Autorización registrada el {{ valores.get('fecha_autorizacion') }} · versión {{ valores.get('version_politica') }}. La evidencia original está protegida contra modificaciones.</span>
+      </div>
+      {% if modo == 'editar' %}
+        <label class="consentimiento-checkbox" for="estado_autorizacion">
+          <input type="checkbox" id="estado_autorizacion" name="estado_autorizacion" value="revocada">
+          <span>Confirmo que el paciente ha revocado la autorización previamente registrada.</span>
+        </label>
+      {% endif %}
+    {% elif estado_autorizacion == 'revocada' %}
+      <div class="privacidad-ayuda" role="status">Autorización revocada. Se conserva la evidencia histórica de la autorización original, pero no se presenta como autorización vigente.</div>
+    {% else %}
+      <label class="consentimiento-checkbox" for="autoriza_tratamiento_datos">
+        <input type="checkbox" id="autoriza_tratamiento_datos" name="autoriza_tratamiento_datos" value="si"
+          {% if valores.get('autoriza_tratamiento_datos') == 'si' %}checked{% endif %}>
+        <span>{{ texto_autorizacion }}</span>
+      </label>
+      {% if estado_autorizacion == 'rechazada' %}
+        <p class="privacidad-ayuda">Autorización rechazada. No se ha registrado consentimiento como otorgado.</p>
+      {% else %}
+        <p class="privacidad-ayuda">{% if modo == 'editar' %}Este paciente fue registrado anteriormente y no se encontró evidencia de su autorización para el tratamiento de datos personales. Verifique si existe una autorización previa o registre una nueva únicamente después de obtener el consentimiento del paciente.{% else %}La ausencia de marcación no se interpreta como autorización.{% endif %}</p>
+      {% endif %}
+      <label class="consentimiento-checkbox" for="estado_autorizacion">
+        <input type="checkbox" id="estado_autorizacion" name="estado_autorizacion" value="rechazada"
+          {% if valores.get('estado_autorizacion') == 'rechazada' and valores.get('autoriza_tratamiento_datos') != 'si' %}checked{% endif %}>
+        <span>Confirmo que el paciente manifestó que no autoriza el tratamiento de sus datos.</span>
+      </label>
+    {% endif %}
+  </section>
+
   <div class="form-acciones">
     {% if modo == 'editar' %}
       <a class="boton-secundario" href="/?id={{ paciente_id }}">Cancelar</a>
@@ -146,4 +208,54 @@
     <button type="submit" class="boton-guardar-sivam">{{ 'Actualizar Historia Clínica' if modo == 'editar' else 'Guardar Historia Clínica' }}</button>
   </div>
 </form>
+<script>
+  (function () {
+    const fecha = document.getElementById('fecha_de_nacimiento');
+    const desconoce = document.getElementById('fecha_nacimiento_desconocida');
+    const edad = document.getElementById('edad');
+    const etiqueta = document.getElementById('etiqueta-edad');
+
+    function calcularEdad(valor) {
+      if (!valor) return '';
+      const nacimiento = new Date(valor + 'T00:00:00');
+      const hoy = new Date();
+      let anos = hoy.getFullYear() - nacimiento.getFullYear();
+      const antesDelCumple = hoy.getMonth() < nacimiento.getMonth() ||
+        (hoy.getMonth() === nacimiento.getMonth() && hoy.getDate() < nacimiento.getDate());
+      return antesDelCumple ? anos - 1 : anos;
+    }
+
+    function sincronizarEdad() {
+      const estimada = desconoce.checked;
+      fecha.disabled = estimada;
+      edad.readOnly = !estimada;
+      etiqueta.textContent = estimada ? 'Edad estimada' : 'Edad';
+      if (estimada) {
+        fecha.value = '';
+      } else {
+        edad.value = calcularEdad(fecha.value);
+      }
+    }
+
+    fecha.addEventListener('change', function () {
+      if (!desconoce.checked) edad.value = calcularEdad(fecha.value);
+    });
+    desconoce.addEventListener('change', sincronizarEdad);
+    sincronizarEdad();
+
+    const autoriza = document.getElementById('autoriza_tratamiento_datos');
+    const rechaza = document.getElementById('estado_autorizacion');
+    if (autoriza && rechaza) {
+      // Ambas decisiones no pueden coexistir. Si el navegador restaura un
+      // formulario anterior, la confirmación de autorización tiene prioridad.
+      if (autoriza.checked && rechaza.checked) rechaza.checked = false;
+      autoriza.addEventListener('change', function () {
+        if (autoriza.checked) rechaza.checked = false;
+      });
+      rechaza.addEventListener('change', function () {
+        if (rechaza.checked) autoriza.checked = false;
+      });
+    }
+  }());
+</script>
 {% endblock %}

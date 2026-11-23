@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Política de Tratamiento de Datos · SIVAM</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="politica-body">
+  <header class="politica-encabezado">
+    <div class="politica-marca">
+      <span class="politica-marca-icono"><i class="fas fa-heart-pulse"></i></span>
+      <div><strong>SIVAM</strong><span>Sistema de Valoración del Adulto Mayor</span></div>
+    </div>
+    <span class="politica-etiqueta"><i class="fas fa-shield-heart"></i> Protección de datos</span>
+  </header>
+
+  <main class="politica-contenedor">
+    <section class="politica-portada">
+      <div class="politica-portada-icono"><i class="fas fa-user-shield"></i></div>
+      <div>
+        <p class="politica-sobretitulo">TRANSPARENCIA Y PRIVACIDAD</p>
+        <h1>Política de Tratamiento de Datos Personales</h1>
+        <p>Conoce cómo SIVAM protege y utiliza la información personal para la valoración integral del adulto mayor.</p>
+        <div class="politica-meta"><span><i class="fas fa-code-branch"></i> {{ version_politica }}</span><span><i class="fas fa-calendar-check"></i> Vigente desde el 12 de noviembre de 2026</span></div>
+      </div>
+    </section>
+
+    <section class="politica-aviso">
+      <i class="fas fa-circle-info"></i>
+      <p><strong>Aviso de privacidad:</strong> La entidad, a través del área encargada, es responsable del tratamiento de los datos recolectados en SIVAM para valoración, seguimiento y gestión institucional o investigativa autorizada. Esta política explica las finalidades, los derechos del titular y cómo ejercerlos.</p>
+    </section>
+
+    <article class="politica-documento">
+      <section class="politica-seccion">
+        <h2><span>1</span> Responsable y contacto</h2>
+        <p>La entidad operadora del sistema, por medio del área encargada, es responsable del tratamiento de los datos personales recolectados en el Sistema de Valoración del Adulto Mayor (SIVAM).</p>
+        <div class="politica-contacto"><i class="fas fa-envelope-open-text"></i><p>Canal para consultas, reclamos, actualización, rectificación, supresión o revocatoria: <strong>{{ contacto_datos }}</strong><br>Teléfono: <strong>{{ telefono_datos }}</strong> · Dirección: <strong>{{ direccion_datos }}</strong>.</p></div>
+      </section>
+
+      <section class="politica-seccion">
+        <h2><span>2</span> Datos y finalidades</h2>
+        <p>SIVAM trata datos de identificación, contacto, socioeconómicos, antecedentes y datos sensibles relacionados con salud y condición física. Incluye resultados de Antropometría, MoCA, Tinetti, VO2 Max y Chair Stand.</p>
+        <p>Se usan para realizar y documentar la valoración integral del adulto mayor, brindar seguimiento, elaborar reportes clínicos y estadísticos, apoyar procesos institucionales, académicos o investigativos autorizados y cumplir obligaciones legales. La entidad no usará los datos para finalidades distintas sin una nueva base legal o autorización cuando corresponda.</p>
+      </section>
+
+      <section class="politica-seccion">
+        <h2><span>3</span> Datos sensibles y autorización</h2>
+        <p>Los datos de salud y condición física son sensibles. Su entrega es facultativa; no se condiciona la atención por negarse a responder preguntas sensibles no indispensables. Antes de recolectarlos, SIVAM solicita una autorización previa, expresa e informada y conserva la fecha, versión y texto aceptado como evidencia.</p>
+      </section>
+
+      <section class="politica-seccion">
+        <h2><span>4</span> Derechos del titular</h2>
+        <p>El titular puede conocer, actualizar y rectificar sus datos; solicitar prueba de la autorización; conocer el uso dado a sus datos; presentar quejas ante la Superintendencia de Industria y Comercio; revocar la autorización y/o solicitar la supresión cuando proceda; y acceder gratuitamente a sus datos.</p>
+      </section>
+
+      <section class="politica-seccion">
+        <h2><span>5</span> Procedimiento para consultas y reclamos</h2>
+        <p>Envía la solicitud por el canal indicado, identificando al titular, el derecho que desea ejercer y los documentos que soporten su representación si aplica. Las consultas se atenderán en máximo diez (10) días hábiles y los reclamos en máximo quince (15) días hábiles, de acuerdo con la Ley 1581 de 2012; si no es posible atenderlos en ese término, se informará la prórroga legal y su motivo.</p>
+      </section>
+
+      <section class="politica-seccion">
+        <h2><span>6</span> Seguridad, conservación y cambios</h2>
+        <p>La entidad aplica controles administrativos, técnicos y de acceso proporcionales a la naturaleza sensible de la información. Los datos se conservan durante el tiempo necesario para las finalidades indicadas y las obligaciones legales o institucionales aplicables. Los cambios sustanciales de esta política se comunicarán antes o al momento de su implementación por los medios disponibles en SIVAM.</p>
+      </section>
+    </article>
+  </main>
+</body>
+</html>

@@ -1,6 +1,6 @@
 {% extends "base_sivam.html" %}
 
-{% block title %}Antropometría · SIVAM - CECAR{% endblock %}
+{% block title %}Antropometría · SIVAM{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -123,6 +123,7 @@
           <th>ICC</th>
           <th>Resultado ICC</th>
           <th>Riesgo CV</th>
+          <th>Evaluador</th>
           <th>Fecha</th>
           <th class="col-acciones">Acciones</th>
         </tr>
@@ -164,6 +165,7 @@
               <span class="badge-riesgo-vacio">—</span>
             {% endif %}
           </td>
+          <td>{{ r.evaluador if r.evaluador else '-' }}</td>
           <td>{{ r.fecha_examen if r.fecha_examen else '-' }}</td>
           <td class="col-acciones">
             <button type="button" class="accion-btn accion-ver" title="Ver ficha"

@@ -1,6 +1,6 @@
 {% extends "base_sivam.html" %}
 
-{% block title %}Configuración · SIVAM - CECAR{% endblock %}
+{% block title %}Configuración · SIVAM{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -9,7 +9,7 @@
     <span>Configuración</span>
   </div>
   <h1 class="page-title">Configuración</h1>
-  <p class="page-subtitle">Configuración del sistema SIVAM</p>
+  <p class="page-subtitle">Tu espacio para revisar el estado y personalizar SIVAM.</p>
 </div>
 
 <div class="config-grid">
@@ -30,8 +30,12 @@
         <strong>{{ total_pacientes }}</strong>
       </div>
       <div class="config-item">
+        <span>Evaluaciones registradas</span>
+        <strong>{{ total_evaluaciones }}</strong>
+      </div>
+      <div class="config-item">
         <span>Base de datos</span>
-        <strong>SQLite (local)</strong>
+        <strong>{{ tipo_base }}</strong>
       </div>
       {% if usuario %}
       <div class="config-item">
@@ -42,36 +46,30 @@
     </div>
   </div>
 
-  <!-- Cognitiva -->
-  <div class="config-card">
-    <div class="config-card-header">
-      <i class="fas fa-brain"></i>
-      <h3>Cognitiva</h3>
-    </div>
-    <p class="config-card-sub">Evaluación cognitiva de los pacientes del programa</p>
-    <div class="config-lista">
-      <div class="config-item">
-        <span>Evaluaciones MoCA</span>
-        <strong>{{ total_moca }}</strong>
-      </div>
-    </div>
-    <a href="/test_moca" class="btn-sivam btn-sivam-primary config-btn">Ir a MoCA</a>
-  </div>
-
   <!-- Apariencia -->
   <div class="config-card">
     <div class="config-card-header">
       <i class="fas fa-sun"></i>
       <h3>Apariencia</h3>
     </div>
-    <p class="config-card-sub">Personaliza la apariencia del sistema</p>
+    <p class="config-card-sub">Elige una vista cómoda para trabajar durante el día o la noche.</p>
     <div class="config-item">
-      <span>Modo oscuro</span>
+      <span><i class="fas fa-moon config-item-icon"></i> Modo oscuro</span>
       <label class="switch-tema">
         <input type="checkbox" id="toggle-tema">
         <span class="switch-slider"></span>
       </label>
     </div>
+    <p class="config-ayuda">Se aplica en todas las páginas de SIVAM y se conserva en este navegador.</p>
+  </div>
+
+  <div class="config-card config-card-privacidad">
+    <div class="config-card-header">
+      <i class="fas fa-shield-heart"></i>
+      <h3>Privacidad y datos</h3>
+    </div>
+    <p class="config-card-sub">SIVAM conserva la autorización y protege la información clínica de los pacientes.</p>
+    <a href="{{ url_for('politica_tratamiento_datos') }}" class="config-link" target="_blank" rel="noopener">Consultar política de tratamiento <i class="fas fa-arrow-up-right-from-square"></i></a>
   </div>
 </div>
 
@@ -85,11 +83,13 @@
       else { raiz.classList.remove('tema-oscuro'); chk.checked = false; }
     }
 
-    aplicar(localStorage.getItem('sivam-tema') || 'claro');
+    // Cada cuenta posee su propia preferencia en el navegador compartido.
+    const claveTema = 'sivam-tema-usuario-' + {{ (current_user.id if current_user.is_authenticated else 'anonimo')|tojson }};
+    aplicar(localStorage.getItem(claveTema) || 'claro');
 
     chk.addEventListener('change', function () {
       const nuevo = chk.checked ? 'oscuro' : 'claro';
-      localStorage.setItem('sivam-tema', nuevo);
+      localStorage.setItem(claveTema, nuevo);
       aplicar(nuevo);
     });
   })();

@@ -1,6 +1,6 @@
 {% extends "base_sivam.html" %}
 
-{% block title %}Test MoCA · SIVAM - CECAR{% endblock %}
+{% block title %}Test MoCA · SIVAM{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -44,6 +44,7 @@
 </div>
 
 <form method="post" class="hc-form" id="form-moca">
+  <input type="hidden" name="volver_url" value="{{ volver_url }}">
 
   {# ===== Dominios cognitivos ===== #}
   <section class="form-seccion">
@@ -97,7 +98,7 @@
       <div class="campo-sivam">
         <label for="evaluador">Evaluador</label>
         <input type="text" id="evaluador" name="evaluador" placeholder="Nombre del evaluador"
-               value="{{ valores.get('evaluador') or '' }}">
+               value="{{ valores.get('evaluador') or evaluador_default }}" required>
       </div>
       <div class="campo-sivam campo-ancho">
         <label for="observaciones">Observaciones</label>
