@@ -161,7 +161,7 @@
   </script>
 
   <!-- Indicador de carga global -->
-  <div id="sivam-loader" class="sivam-loader" aria-hidden="true">
+  <div id="sivam-loader" class="sivam-loader" aria-hidden="true" role="status" aria-live="polite">
     <div class="sivam-loader-caja">
       <div class="sivam-loader-spinner"></div>
       <p class="sivam-loader-texto">Cargando...</p>
@@ -172,17 +172,35 @@
     (function () {
       const loader = document.getElementById('sivam-loader');
       if (!loader) return;
+      const textoLoader = loader.querySelector('.sivam-loader-texto');
+      let navegando = false;
 
-      function mostrarLoader() {
+      function mostrarLoader(mensaje) {
+        if (mensaje && textoLoader) {
+          textoLoader.textContent = mensaje;
+        }
         loader.classList.add('activo');
+        loader.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('sivam-cargando');
       }
       function ocultarLoader() {
         loader.classList.remove('activo');
+        loader.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('sivam-cargando');
+        if (textoLoader) textoLoader.textContent = 'Cargando...';
+      }
+      function bloquearEnvio(formulario) {
+        formulario.dataset.sivamEnviando = 'true';
+        formulario.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (control) {
+          control.disabled = true;
+          control.setAttribute('aria-disabled', 'true');
+        });
       }
 
       // Mostrar al navegar por enlaces internos (no anclas, no nueva pestaña,
       // no descargas).
       document.addEventListener('click', function (e) {
+        if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         const enlace = e.target.closest('a');
         if (!enlace) return;
         const href = enlace.getAttribute('href');
@@ -192,19 +210,44 @@
         if (href.startsWith('javascript:')) return;
         // Solo rutas internas del mismo sitio.
         if (enlace.host && enlace.host !== window.location.host) return;
-        mostrarLoader();
+        if (navegando) {
+          e.preventDefault();
+          return;
+        }
+        navegando = true;
+        mostrarLoader('Cargando...');
       });
 
-      // Mostrar al enviar formularios.
-      document.addEventListener('submit', function () {
-        mostrarLoader();
+      // Mostrar antes de enviar el formulario y bloquear reintentos. Se espera
+      // un cuadro de renderizado para que el usuario vea el indicador mientras
+      // el servidor procesa la petición.
+      document.addEventListener('submit', function (e) {
+        const formulario = e.target;
+        if (!(formulario instanceof HTMLFormElement)) return;
+        if (navegando || formulario.dataset.sivamEnviando === 'true') {
+          e.preventDefault();
+          return;
+        }
+
+        e.preventDefault();
+        navegando = true;
+        bloquearEnvio(formulario);
+        const mensaje = formulario.dataset.loaderText ||
+          (formulario.method.toLowerCase() === 'get' ? 'Buscando...' : 'Guardando...');
+        mostrarLoader(mensaje);
+
+        window.requestAnimationFrame(function () {
+          window.setTimeout(function () {
+            HTMLFormElement.prototype.submit.call(formulario);
+          }, 0);
+        });
       });
 
       // Ocultar si el usuario vuelve con el botón "atrás" (bfcache).
-      window.addEventListener('pageshow', function (e) {
-        if (e.persisted) ocultarLoader();
+      window.addEventListener('pageshow', function () {
+        navegando = false;
+        ocultarLoader();
       });
-      window.addEventListener('beforeunload', ocultarLoader);
     })();
   </script>
 </body>

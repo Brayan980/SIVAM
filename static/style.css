@@ -3338,6 +3338,17 @@ html.tema-oscuro .boton-secundario {
 
 .sivam-loader.activo {
   display: flex;
+  cursor: progress;
+}
+
+.sivam-cargando,
+.sivam-cargando * {
+  cursor: progress;
+}
+
+.sivam-cargando button[disabled],
+.sivam-cargando input[type="submit"][disabled] {
+  opacity: 0.72;
 }
 
 .sivam-loader-caja {

@@ -13,7 +13,7 @@
   <p class="page-subtitle">Busca y selecciona un paciente existente para agregar datos</p>
 </div>
 
-<form class="buscador-sivam" method="get" action="/seleccionar_paciente">
+<form class="buscador-sivam" method="get" action="/seleccionar_paciente" data-loader-text="Buscando pacientes...">
   <input type="hidden" name="modulo" value="{{ siguiente_modulo }}">
   <label for="q" class="buscador-etiqueta">Nombre o apellido del paciente</label>
   <div class="buscador-fila">
@@ -33,7 +33,7 @@
   <section class="lista-resultados-sivam">
     <p class="conteo">{{ resultados|length }} pacientes encontrados</p>
     {% for r in resultados %}
-      <form method="post" class="fila-seleccion-form">
+      <form method="post" class="fila-seleccion-form" data-loader-text="Abriendo evaluación...">
         <input type="hidden" name="paciente_id" value="{{ r[0] }}">
         <input type="hidden" name="modulo" value="{{ siguiente_modulo }}">
         <button type="submit" class="fila-seleccion-btn">
