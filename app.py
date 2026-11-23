@@ -10,15 +10,27 @@ import os
 import sqlite3
 from datetime import datetime, timezone, date
 from campos import CAMPOS, CAMPOS_CLINICOS, ETIQUETAS, normalizar, calcular_edad
-from db import conectar
+from db import conectar, DATABASE_URL
 import exportar
 import graficas
+import migraciones
 
 # Cargar variables de entorno
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'clave-secreta-para-sesiones')
+
+# Ejecutar migraciones SQL pendientes al arrancar (solo en producción con Postgres)
+if DATABASE_URL:
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    try:
+        _conn_migraciones = conectar()
+        migraciones.correr_migraciones(_conn_migraciones)
+        _conn_migraciones.close()
+    except Exception as _e:
+        logging.getLogger(__name__).error(f'Error al correr migraciones: {_e}')
 
 # Versionar el texto permite demostrar qué información se presentó al titular.
 VERSION_POLITICA_DATOS = 'SIVAM-PTD-1.0-2026-11-12'
