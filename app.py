@@ -25,12 +25,15 @@ app.secret_key = os.getenv('SECRET_KEY', 'clave-secreta-para-sesiones')
 if DATABASE_URL:
     import logging
     logging.basicConfig(level=logging.INFO)
+    _logger_app = logging.getLogger(__name__)
     try:
         _conn_migraciones = conectar()
         migraciones.correr_migraciones(_conn_migraciones)
         _conn_migraciones.close()
+        _logger_app.info('Migraciones completadas al arranque.')
     except Exception as _e:
-        logging.getLogger(__name__).error(f'Error al correr migraciones: {_e}')
+        _logger_app.error(f'FALLO EN MIGRACIONES AL ARRANQUE: {_e}')
+        # No bloqueamos el arranque, pero el error queda visible en logs
 
 # Versionar el texto permite demostrar qué información se presentó al titular.
 VERSION_POLITICA_DATOS = 'SIVAM-PTD-1.0-2026-11-12'

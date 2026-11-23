@@ -61,7 +61,16 @@ def correr_migraciones(conexion):
         try:
             with open(ruta, encoding='utf-8') as f:
                 sql = f.read()
-            cursor.execute(sql)
+
+            # psycopg2 no admite múltiples sentencias en un execute().
+            # Dividimos por ; filtrando líneas de comentarios y vacías.
+            sentencias = [
+                s.strip() for s in sql.split(';')
+                if s.strip() and not s.strip().startswith('--')
+            ]
+            for sentencia in sentencias:
+                cursor.execute(sentencia)
+
             cursor.execute(
                 "INSERT INTO _migraciones (nombre) VALUES (%s)", (nombre,)
             )
