@@ -2149,7 +2149,10 @@ def test_moca_formulario():
                 v = 0
             return max(0, min(v, maximo))
 
-        nada_mental = request.form.get('nada_mental') == 'on'
+        # La migración de Supabase usa INTEGER (0/1) para este campo. SQLite
+        # tolera booleanos, pero PostgreSQL rechaza un booleano en una columna
+        # INTEGER al actualizar un registro existente.
+        nada_mental = 1 if request.form.get('nada_mental') == 'on' else 0
 
         if nada_mental:
             vals = {c: 0 for c in dominios}

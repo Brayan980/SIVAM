@@ -21,7 +21,7 @@ crear_test_moca = sql.SQL("""
         visuoespacial INTEGER, denominacion INTEGER, memoria INTEGER, atencion INTEGER,
         lenguaje INTEGER, abstraccion INTEGER, orientacion INTEGER,
         puntaje_total INTEGER,
-        nada_mental BOOLEAN DEFAULT FALSE,
+        nada_mental INTEGER DEFAULT 0,
         indice_memoria INTEGER,
         resultado TEXT,
         evaluador TEXT,
