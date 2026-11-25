@@ -15,17 +15,6 @@
   <p class="page-subtitle">Administra las cuentas y permisos del sistema</p>
 </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for categoria, mensaje in messages %}
-      <div class="alerta-sivam alerta-{{ 'ok' if categoria == 'ok' else 'error' }}">
-        <i class="fas {{ 'fa-check-circle' if categoria == 'ok' else 'fa-exclamation-circle' }}"></i>
-        {{ mensaje }}
-      </div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
-
 <section class="tabla-panel-sivam">
   <h2 class="tabla-panel-titulo"><i class="fas fa-users-cog"></i> Usuarios ({{ usuarios|length }})</h2>
   <div class="tabla-container">

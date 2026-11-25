@@ -253,6 +253,21 @@ def acceso_denegado(e):
 # ============================================================
 ROLES_VALIDOS = ['admin', 'medico']
 
+# Referencias que conservan la trazabilidad de quién realizó acciones clínicas
+# o registró evidencia de autorización. No se eliminan ni se reasignan al borrar
+# una cuenta, para no alterar registros históricos.
+REFERENCIAS_A_USUARIO = (
+    ('pacientes', 'inactivado_por'),
+    ('pacientes', 'reactivado_por'),
+    ('antropometria', 'creado_por'),
+    ('vo2_max', 'creado_por'),
+    ('test_moca', 'creado_por'),
+    ('test_tinetti', 'creado_por'),
+    ('test_chair_stand', 'creado_por'),
+    ('caracterizacion_socioeconomica', 'creado_por'),
+    ('consentimientos_tratamiento_datos', 'registrado_por'),
+)
+
 
 @app.route('/usuarios')
 @admin_required
@@ -358,7 +373,7 @@ def usuarios_editar(user_id):
 @app.route('/usuarios/<int:user_id>/eliminar', methods=['POST'])
 @admin_required
 def usuarios_eliminar(user_id):
-    """Elimina un usuario, evitando borrar al propio admin logueado o al último admin."""
+    """Elimina cuentas sin trazabilidad, protegiendo al admin actual y al último admin."""
     if str(user_id) == str(current_user.id):
         flash('No puedes eliminar tu propia cuenta.', 'error')
         return redirect(url_for('usuarios_lista'))
@@ -379,10 +394,40 @@ def usuarios_eliminar(user_id):
             flash('No puedes eliminar al único administrador.', 'error')
             return redirect(url_for('usuarios_lista'))
 
-    cursor.execute('DELETE FROM usuarios WHERE id = %s', (user_id,))
-    conexion.commit()
-    conexion.close()
-    flash('Usuario eliminado.', 'ok')
+    # Las claves foráneas de las evaluaciones, inactivaciones y consentimientos
+    # impiden borrar una cuenta que forma parte de la trazabilidad clínica. Se
+    # valida antes de ejecutar DELETE para dar una respuesta útil, en vez de 500.
+    tiene_trazabilidad = False
+    for tabla, columna in REFERENCIAS_A_USUARIO:
+        cursor.execute(
+            f'SELECT 1 FROM {tabla} WHERE {columna} = %s LIMIT 1',
+            (user_id,)
+        )
+        if cursor.fetchone():
+            tiene_trazabilidad = True
+            break
+
+    if tiene_trazabilidad:
+        conexion.close()
+        flash(
+            'No se puede eliminar este usuario porque tiene registros clínicos '
+            'o evidencias de autorización asociadas. Se conservan para mantener '
+            'la trazabilidad del sistema.',
+            'error'
+        )
+        return redirect(url_for('usuarios_lista'))
+
+    try:
+        cursor.execute('DELETE FROM usuarios WHERE id = %s', (user_id,))
+        conexion.commit()
+    except Exception:
+        conexion.rollback()
+        app.logger.exception('No fue posible eliminar el usuario solicitado.')
+        flash('No se pudo eliminar el usuario. Inténtalo de nuevo.', 'error')
+    else:
+        flash('Usuario eliminado.', 'ok')
+    finally:
+        conexion.close()
     return redirect(url_for('usuarios_lista'))
 
 

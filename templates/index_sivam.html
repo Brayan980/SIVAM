@@ -66,21 +66,17 @@
         <a class="boton-nuevo-sivam" href="/paciente/{{ paciente.id }}/dashboard"><i class="fas fa-chart-pie"></i> Ver Resumen</a>
         {% if paciente.esta_inactivo %}
           <button type="button" class="boton-reactivar"
-                  onclick="confirmarReactivacion({{ paciente.id }}, '{{ (paciente.nombres ~ ' ' ~ paciente.apellidos)|e }}')"><i class="fas fa-rotate-left"></i> Reactivar</button>
+                  onclick='confirmarReactivacion({{ paciente.id }}, {{ (paciente.nombres ~ " " ~ paciente.apellidos)|tojson }})'><i class="fas fa-rotate-left"></i> Reactivar</button>
           <span class="vacio-ayuda">Inactivado {{ paciente.fecha_inactivacion or '' }}{% if paciente.inactivado_por_nombre %} por {{ paciente.inactivado_por_nombre }}{% endif %}. Se conserva para consulta.</span>
         {% else %}
           <a class="boton-secundario" href="/editar/{{ paciente.id }}?origen=pacientes">Editar</a>
           {% if paciente.eliminacion_bloqueada %}
-            <form method="post" action="/pacientes/{{ paciente.id }}/inactivar"
-                  onsubmit="return confirm('¿Inactivar a {{ paciente.nombres }} {{ paciente.apellidos }}? Se retirará de la operación diaria, pero su historia y la evidencia de autorización se conservarán.');">
-              <button type="submit" class="boton-inactivar"><i class="fas fa-box-archive"></i> Inactivar</button>
-            </form>
+            <button type="button" class="boton-inactivar"
+                    onclick='confirmarInactivar({{ paciente.id }}, {{ (paciente.nombres ~ " " ~ paciente.apellidos)|tojson }})'><i class="fas fa-box-archive"></i> Inactivar</button>
             <span class="vacio-ayuda">Tiene una autorización registrada. Usa el icono de ojo para consultar su evidencia.</span>
           {% else %}
-            <form method="post" action="/eliminar/{{ paciente.id }}"
-                  onsubmit="return confirm('¿Eliminar a {{ paciente.nombres }} {{ paciente.apellidos }}? Esta acción no se puede deshacer.');">
-              <button type="submit" class="boton-peligro">Eliminar</button>
-            </form>
+            <button type="button" class="boton-peligro"
+                    onclick='confirmarEliminar({{ paciente.id }}, {{ (paciente.nombres ~ " " ~ paciente.apellidos)|tojson }}, false)'>Eliminar</button>
           {% endif %}
         {% endif %}
       </div>
